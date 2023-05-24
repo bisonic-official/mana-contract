@@ -1,96 +1,139 @@
 //SPDX-License-Identifier: UNLICENSED
 
-// Solidity files have to start with this pragma.
-// It will be used by the Solidity compiler to validate its version.
 pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-// Functions
-// SetPackagesPrices(array prices) onlyOwner -> Changed to setPackages()
-// GetPackagePrices() public -> Changed to getPackages()
-// SetVaultAddress onlyOwner
-// function buyMana(array packages)
-
-// Pending
-// Whitdraw(amount) onlyOwner
-// WhitdrawAll(amount) onlyOwner
-
 contract ManaVendingMachine is Ownable {
-    // ManaVault contract address
-    address payable public vaultAdress;
+    /**
+     * @notice Vault address.
+     * @notice This address will receive all the funds after withdrawal.
+     */
+    address payable public vaultAddress;
 
-    // Mapping of Mana balances
+    /**
+     * @notice Contract balance.
+     * @notice This contract will receive all the funds after purchase.
+     */
+    uint256 public contractBalance;
+
+    /**
+     * @notice Mana balances.
+     * @notice This mapping stores the mana balance of each address.
+     */
     mapping(address => uint) public manaBalances;
 
-    // Create structure for a package
+    /**
+     * @notice Package struct.
+     * @notice This struct defines the mana quantity and price of a package.
+     */
     struct Package {
-        uint32 manaQty;
-        uint32 price;
+        uint256 manaQty;
+        uint256 price;
     }
 
-    // List of packages available for sale
-    uint8 public pkgQty = 10;
+    /**
+     * @notice Define maximum integer value.
+     */
+    uint256 MAX_INT = 2 ** 256 - 1;
+
+    /**
+     * @notice Number of packages.
+     * @notice This number should be the same as the length of the packages array.
+     */
+    uint8 public pkgQty = 3;
     Package[] public packages;
 
-    // Contract constructor: set owner
+    /**
+     * @dev Event for purchase packages.
+     * @param buyer address The address of the buyer.
+     * @param quantities uint256[] The quantity of each package purchased.
+     * @param totalEth uint256 The total eth spent.
+     * @param totalMana uint256 The total mana purchased.
+     */
+    event PurchasePackages(
+        address buyer,
+        uint256[] quantities,
+        uint256 totalEth,
+        uint256 totalMana
+    );
+
+    /**
+     * @dev Constructor function.
+     */
     constructor() {
-        // Set the owner as the contract creator
-        Ownable(msg.sender);
+        // Set the owner and vaultAddress as the contract creator
+        vaultAddress = payable(msg.sender);
 
         for (uint8 i = 0; i < pkgQty; i++) {
-            packages.push(Package(0, 0));
+            packages.push(Package(0, MAX_INT));
         }
     }
 
-    // Setter of vaultAdress
+    /**
+     * @dev Set the vault address.
+     * @param _vaultAdress address The address of the vault.
+     */
     function setVaultAddress(address _vaultAdress) external onlyOwner {
-        vaultAdress = payable(_vaultAdress);
+        vaultAddress = payable(_vaultAdress);
     }
 
-    // Getter of pkgQty
+    /**
+     * @dev Get the number of packages defined in contract.
+     * @return uint8 The number of packages.
+     */
     function getPkgQty() public view returns (uint8) {
         return pkgQty;
     }
 
-    // Get balance of a given address
+    /**
+     * @dev Get the mana balance of an address.
+     * @param _address address The address to check.
+     * @return uint The mana balance.
+     */
     function getManaBalance(address _address) public view returns (uint) {
         return manaBalances[_address];
     }
 
-    // Getter for the list of packages
+    /**
+     * @dev Get the packages list.
+     * @return Package[] The list of packages.
+     */
     function getPackages() public view returns (Package[] memory) {
         return packages;
     }
 
-    // Getter for the list of packages
+    /**
+     * @dev Get a package from its id.
+     * @param pkgId uint8 The id of the package.
+     * @return Package The package.
+     */
     function getPackageFromId(
         uint8 pkgId
     ) public view returns (Package memory) {
         return packages[pkgId];
     }
 
-    // Set the list of packages
+    /**
+     * @dev Set the packages.
+     * @param _manaQty uint256[] The quantity of mana of each package.
+     * @param _prices uint256[] The price of each package.
+     */
     function setPackages(
-        uint32[] calldata _manaQty,
-        uint32[] calldata _prices
+        uint256[] calldata _manaQty,
+        uint256[] calldata _prices
     ) external onlyOwner {
-        // Check if the arrays have the same length
+        // Arrays should be the same length
         require(
             _manaQty.length == _prices.length,
             "Mana quantity and prices arrays must have the same length"
         );
 
-        // Arrays should be shorter than pkgQty
+        // Arrays should be the same size as pkgQty (packages quantity)
         require(
-            _manaQty.length <= pkgQty,
-            "Mana quantity and prices arrays must be shorter than pkgQty"
+            _manaQty.length == pkgQty,
+            "Mana quantity and prices arrays must be same length as pkgQty"
         );
-
-        // Empty the packages array
-        for (uint8 i = 0; i < pkgQty; i++) {
-            packages[i] = Package(0, 0);
-        }
 
         // Loop through the arrays and create the packages
         for (uint8 i = 0; i < _manaQty.length; i++) {
@@ -98,9 +141,12 @@ contract ManaVendingMachine is Ownable {
         }
     }
 
-    // Buy a package
-    function purchasePackages(uint8[] memory _qty) public payable {
-        // Check if the length of the array is the same as the number of packages
+    /**
+     * @dev Purchase packages.
+     * @param _qty uint256[] The quantity of each package to purchase.
+     */
+    function purchasePackages(uint256[] memory _qty) public payable {
+        // Array should be the same length as the number of packages
         require(
             _qty.length == packages.length,
             "The length of the array is not the same as the number of packages"
@@ -115,12 +161,38 @@ contract ManaVendingMachine is Ownable {
         }
 
         // Check if the value sent is enough
-        require(msg.value >= totalEth, "Value sent is not enough");
-
-        // Send the value to the vault
-        vaultAdress.transfer(msg.value);
+        require(msg.value == totalEth, "Value sent is not exact");
 
         // Add the mana to the user's balance
         manaBalances[msg.sender] += totalMana;
+
+        // Save the value to the contract balance
+        contractBalance += totalEth;
+
+        // Emit the event
+        emit PurchasePackages(msg.sender, _qty, totalEth, totalMana);
+    }
+
+    /**
+     * @dev Withdraw funds to the vault using call.
+     * @param _amount uint256 The amount to withdraw.
+     */
+    function withdraw(uint256 _amount) external onlyOwner {
+        require(_amount <= contractBalance, "Insufficient contract balance");
+        contractBalance -= _amount;
+
+        (bool success, ) = vaultAddress.call{value: _amount}("");
+        require(success, "Withdraw was not successful");
+    }
+
+    /**
+     * @dev Withdraw all the funds to the vaultAdress using call.
+     */
+    function withdrawAll() external onlyOwner {
+        uint256 _amount = contractBalance;
+        contractBalance = 0;
+
+        (bool success, ) = vaultAddress.call{value: _amount}("");
+        require(success, "Withdraw all was not successful");
     }
 }
