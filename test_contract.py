@@ -28,10 +28,13 @@ def main():
         contract = load_contract(w3, config['contract']['address'],
                                  config['contract']['abi'])
 
-        # Set packages
+        # Set packages 1_000_000_000_000_000_000
         packages = {
             'manaQty': [1000, 5000, 10000],
-            'prices': [10, 50, 100],
+            'prices': [
+                1_000_000_000_000_000_000, 2_000_000_000_000_000_000,
+                3_000_000_000_000_000_000
+            ],
         }
 
         txn_receipt = set_packages(w3, contract, private_key, address,
@@ -50,7 +53,7 @@ def main():
         print(f'[INFO] Mana balance before purchase: {mana_balance}')
 
         # Buy mana
-        packages = [3, 2, 1]
+        packages = [1, 0, 0]
 
         txn_receipt = buy_mana(w3, contract, private_key, address, packages)
 
