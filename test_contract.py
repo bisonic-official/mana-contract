@@ -2,6 +2,7 @@ from utils.config import load_config
 from utils.config import setup_custom_logger
 from utils.contract import connect_to_web3
 from utils.contract import load_contract
+from utils.buyer import withdraw_mana
 from utils.buyer import set_packages
 from utils.buyer import buy_mana
 
@@ -28,6 +29,16 @@ def main():
         contract = load_contract(w3, config['contract']['address'],
                                  config['contract']['abi'])
 
+        # Get mana balance before withdraw
+        mana_balance = contract.functions.getManaBalance(address).call()
+        print(f'[INFO] Mana balance before withdraw: {mana_balance}')
+
+        # Withdraw mana
+        txn_receipt = withdraw_mana(w3, contract, private_key, address)
+        txn_msg = f'Transaction receipt (withdrawAll): {txn_receipt}'
+        print(f'[INFO] {txn_msg}')
+        logger.info(txn_msg)
+
         # Set packages 1_000_000_000_000_000_000
         packages = {
             'manaQty': [1000, 5000, 10000],
@@ -53,7 +64,7 @@ def main():
         print(f'[INFO] Mana balance before purchase: {mana_balance}')
 
         # Buy mana
-        packages = [1, 0, 0]
+        packages = [0, 1, 0]
 
         txn_receipt = buy_mana(w3, contract, private_key, address, packages)
 
