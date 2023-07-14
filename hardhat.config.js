@@ -1,4 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
+require('solidity-coverage');
 
 // Go to https://www.alchemyapi.io, sign up, create
 // a new App in its dashboard, and replace "KEY" with its key

@@ -32,11 +32,20 @@ describe("🔥 Contract deployment", function () {
             expect(pkgs[values]['price']).to.equal(BigInt(Math.pow(2, 256)) - BigInt(1));
             expect(pkgs[values]['manaQty']).to.equal(0);
         }
+
+        // Get packages from Id
+        const pkg = await contract.getPackageFromId(0);
+        expect(pkg['price']).to.equal(BigInt(Math.pow(2, 256)) - BigInt(1));
+        expect(pkg['manaQty']).to.equal(0);
     });
 
     it("Verify setter of packages", async function () {
         const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
         const contract = await ManaVendingMachine.deploy();
+
+        // Set vault address
+        contract.setVaultAddress("0x0d72fD549214Eb53cC241f400B147364e926E15B");
+        expect(await contract.vaultAddress()).to.equal("0x0d72fD549214Eb53cC241f400B147364e926E15B");
 
         // Set packages and verify modified values
         const manaQty1 = [100, 200, 300];
