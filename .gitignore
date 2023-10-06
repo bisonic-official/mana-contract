@@ -1,6 +1,5 @@
 # Extras
 cache/
-coverage*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -185,7 +184,7 @@ pids
 lib-cov
 
 # Coverage directory used by tools like istanbul
-coverage
+# coverage
 *.lcov
 
 # nyc test coverage

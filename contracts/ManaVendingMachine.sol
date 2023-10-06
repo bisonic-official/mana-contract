@@ -13,7 +13,7 @@ contract ManaVendingMachine is Ownable {
 
     /**
      * @notice Contract balance.
-     * @notice This contract will receive all the funds after purchase.
+     * @notice This contract will hold funds after mana purchase until withdrawal.
      */
     uint256 public contractBalance;
 
@@ -21,7 +21,7 @@ contract ManaVendingMachine is Ownable {
      * @notice Mana balances.
      * @notice This mapping stores the mana balance of each address.
      */
-    mapping(address => uint) public manaBalances;
+    mapping(address => uint256) public manaBalances;
 
     /**
      * @notice Package struct.
@@ -35,7 +35,7 @@ contract ManaVendingMachine is Ownable {
     /**
      * @notice Define maximum integer value.
      */
-    uint256 MAX_INT = 2 ** 256 - 1;
+    uint256 MAX_INT = type(uint256).max;
 
     /**
      * @notice Number of packages.
@@ -111,6 +111,12 @@ contract ManaVendingMachine is Ownable {
     function getPackageFromId(
         uint8 pkgId
     ) public view returns (Package memory) {
+        // Id should be in the size of the packages array
+        require(
+            pkgId < packages.length,
+            "The pkgId must be in the size of the packages array"
+        );
+
         return packages[pkgId];
     }
 

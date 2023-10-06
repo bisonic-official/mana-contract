@@ -1,3 +1,5 @@
+"""Contract utilities."""
+
 import json
 
 from web3 import Web3
@@ -21,12 +23,12 @@ def connect_to_web3(network='goerli', api_key=None):
         The connection status.
     """
 
-    if network == 'goerli':
-        if api_key is None or api_key == '':
-            raise ValueError('API key is required for Alchemy')
-        else:
-            url = 'https://eth-goerli.g.alchemy.com/v2/' + api_key
-    elif network == 'goerli-arbitrum':
+    if api_key is None or api_key == '':
+        raise ValueError('API key is required for Alchemy')
+
+    if network == 'goerli-eth' or network == 'goerli-ethereum':
+        url = 'https://eth-goerli.g.alchemy.com/v2/' + api_key
+    elif network == 'goerli-arb' or network == 'goerli-arbitrum':
         url = 'https://arb-goerli.g.alchemy.com/v2/' + api_key
 
     w3 = Web3(Web3.HTTPProvider(url))

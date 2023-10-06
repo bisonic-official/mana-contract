@@ -34,6 +34,10 @@ describe("🔥 Contract deployment", function () {
         }
 
         // Get packages from Id
+        await expect(
+            contract.getPackageFromId(10)
+        ).to.be.revertedWith("The pkgId must be in the size of the packages array");
+
         const pkg = await contract.getPackageFromId(0);
         expect(pkg['price']).to.equal(BigInt(Math.pow(2, 256)) - BigInt(1));
         expect(pkg['manaQty']).to.equal(0);

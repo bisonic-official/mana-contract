@@ -1,3 +1,5 @@
+"""Configuration utilities."""
+
 import logging
 
 from configparser import ConfigParser

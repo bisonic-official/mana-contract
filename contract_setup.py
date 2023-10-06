@@ -1,10 +1,11 @@
+"""Setup the contract by setting the vault address and packages."""
+
 from utils.config import load_config
 from utils.config import setup_custom_logger
 from utils.contract import connect_to_web3
 from utils.contract import load_contract
-from utils.buyer import withdraw_mana
+from utils.buyer import set_vault_address
 from utils.buyer import set_packages
-from utils.buyer import buy_mana
 
 
 def main():
@@ -12,7 +13,7 @@ def main():
 
     # Load config and setup logger
     config = load_config('config.ini')
-    logger = setup_custom_logger()
+    _ = setup_custom_logger()
 
     # Connect to web3
     w3, status = connect_to_web3(network=config['network']['network'],
@@ -23,23 +24,22 @@ def main():
     if status:
         connection_msg = 'Web3 connection successful!'
         print(f'[INFO] {connection_msg}')
-        logger.info(connection_msg)
 
         # Load the contract
         contract = load_contract(w3, config['contract']['address'],
                                  config['contract']['abi'])
 
-        # Get mana balance before withdraw
-        mana_balance = contract.functions.getManaBalance(address).call()
-        print(f'[INFO] Mana balance before withdraw: {mana_balance}')
-
-        # Withdraw mana
-        txn_receipt = withdraw_mana(w3, contract, private_key, address)
-        txn_msg = f'Transaction receipt (withdrawAll): {txn_receipt}'
+        # Set vault address
+        txn_receipt = set_vault_address(w3, contract, private_key, address,
+                                        address)
+        txn_msg = f'Transaction receipt (setVaultAddress): {txn_receipt}'
         print(f'[INFO] {txn_msg}')
-        logger.info(txn_msg)
 
-        # Set packages 1_000_000_000_000_000_000
+        # Verify vault address
+        vault_address = contract.functions.vaultAddress().call()
+        print(f'[INFO] Vault address: {vault_address}')
+
+        # Set and verify packages
         packages = {
             'manaQty': [1000, 5000, 10000],
             'prices': [
@@ -50,31 +50,12 @@ def main():
 
         txn_receipt = set_packages(w3, contract, private_key, address,
                                    packages)
-
         txn_msg = f'Transaction receipt (setPackages): {txn_receipt}'
         print(f'[INFO] {txn_msg}')
-        logger.info(txn_msg)
 
         # Get packages to verify setPackages function
         packages = contract.functions.getPackages().call()
         print(f'[INFO] Packages: {packages}')
-
-        # Get mana balance before purchase
-        mana_balance = contract.functions.getManaBalance(address).call()
-        print(f'[INFO] Mana balance before purchase: {mana_balance}')
-
-        # Buy mana
-        packages = [0, 1, 0]
-
-        txn_receipt = buy_mana(w3, contract, private_key, address, packages)
-
-        txn_msg = f'Transaction receipt (buyPackages): {txn_receipt}'
-        print(f'[INFO] {txn_msg}')
-        logger.info(txn_msg)
-
-        # Get mana balance after purchase
-        mana_balance = contract.functions.getManaBalance(address).call()
-        print(f'[INFO] Mana balance after purchase: {mana_balance}')
 
 
 if __name__ == '__main__':
