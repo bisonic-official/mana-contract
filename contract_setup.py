@@ -1,5 +1,7 @@
 """Setup the contract by setting the vault address and packages."""
 
+import argparse
+
 from utils.config import load_config
 from utils.config import setup_custom_logger
 from utils.contract import connect_to_web3
@@ -8,11 +10,29 @@ from utils.buyer import set_vault_address
 from utils.buyer import set_packages
 
 
+def build_parser():
+    """Builds parser for CLI params.
+
+    Returns
+    -------
+    parser : argparse.ArgumentParser
+        The parser object.
+    """
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', type=str, default='config.ini')
+
+    return parser
+
+
 def main():
     """The main function to mint and NFT."""
 
     # Load config and setup logger
-    config = load_config('config.ini')
+    parser  = build_parser()
+    args = parser.parse_args()
+
+    config = load_config(args.config)
     _ = setup_custom_logger()
 
     # Connect to web3
