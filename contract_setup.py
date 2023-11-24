@@ -29,7 +29,7 @@ def main():
     """The main function to mint and NFT."""
 
     # Load config and setup logger
-    parser  = build_parser()
+    parser = build_parser()
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -50,28 +50,28 @@ def main():
                                  config['contract']['abi'])
 
         # Set vault address
-        txn_receipt = set_vault_address(w3, contract, private_key, address,
-                                        address)
-        txn_msg = f'Transaction receipt (setVaultAddress): {txn_receipt}'
-        print(f'[INFO] {txn_msg}')
+        # txn_receipt = set_vault_address(w3, contract, private_key, address,
+        #                                 address)
+        # txn_msg = f'Transaction receipt (setVaultAddress): {txn_receipt}'
+        # print(f'[INFO] {txn_msg}')
 
         # Verify vault address
         vault_address = contract.functions.vaultAddress().call()
         print(f'[INFO] Vault address: {vault_address}')
 
-        # Set and verify packages
-        packages = {
-            'manaQty': [1000, 5000, 10000],
-            'prices': [
-                1_000_000_000_000_000, 2_000_000_000_000_000,
-                3_000_000_000_000_000
-            ],
-        }
+        # # Set and verify packages
+        # packages = {
+        #     'manaQty': [800, 4500, 12500],
+        #     'prices': [
+        #         20000000000000000, 100000000000000000,
+        #         250000000000000000
+        #     ],
+        # }
 
-        txn_receipt = set_packages(w3, contract, private_key, address,
-                                   packages)
-        txn_msg = f'Transaction receipt (setPackages): {txn_receipt}'
-        print(f'[INFO] {txn_msg}')
+        # txn_receipt = set_packages(w3, contract, private_key, address,
+        #                            packages)
+        # txn_msg = f'Transaction receipt (setPackages): {txn_receipt}'
+        # print(f'[INFO] {txn_msg}')
 
         # Get packages to verify setPackages function
         packages = contract.functions.getPackages().call()

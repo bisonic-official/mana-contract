@@ -9,10 +9,10 @@ from utils.buyer import withdraw_eth
 
 
 def main():
-    """The main function to mint and NFT."""
+    """The main function to test ETH withdrawals from contract."""
 
     # Load config and setup logger
-    config = load_config('config.ini')
+    config = load_config('config.eth.ini')
     _ = setup_custom_logger()
 
     # Connect to web3
@@ -35,15 +35,15 @@ def main():
 
         # Get crypto balance before withdraw
         eth_balance = w3.eth.get_balance(address)
-        print(f'[INFO] ETH balance before withdraw: {eth_balance}')
+        print(f'[INFO] Wallet ETH balance before withdraw: {eth_balance}')
 
         # Get contract balance
         contract_balance = w3.eth.get_balance(contract.address)
-        print(f'[INFO] Contract balance: {contract_balance}')
+        print(
+            f'[INFO] Contract ETH balance before withdraw: {contract_balance}')
 
         # Withdraw ETH
-        txn_receipt = withdraw_eth(w3, contract, private_key, address,
-                                   1000000000000000)
+        txn_receipt = withdraw_eth(w3, contract, private_key, address, 1)
         txn_msg = f'Transaction receipt (withdraw): {txn_receipt}'
         print(f'[INFO] {txn_msg}')
 
@@ -54,11 +54,12 @@ def main():
 
         # Get crypto balance after withdraw
         eth_balance = w3.eth.get_balance(address)
-        print(f'[INFO] ETH balance before withdraw: {eth_balance}')
+        print(f'[INFO] Wallet ETH balance after withdraw: {eth_balance}')
 
         # Get contract balance after withdraw
         contract_balance = w3.eth.get_balance(contract.address)
-        print(f'[INFO] Contract balance: {contract_balance}')
+        print(
+            f'[INFO] Contract ETH balance after withdraw: {contract_balance}')
 
 
 if __name__ == '__main__':

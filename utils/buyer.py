@@ -5,7 +5,7 @@ import logging
 
 def set_vault_address(w3, contract, private_key, owner_address, vault_address):
     """Set the vault address.
-    
+
     Parameters
     ----------
     w3 : Web3
@@ -18,7 +18,7 @@ def set_vault_address(w3, contract, private_key, owner_address, vault_address):
         The owner address.
     vault_address : str
         The vault address.
-    
+
     Returns
     -------
     txn : dict
@@ -31,7 +31,7 @@ def set_vault_address(w3, contract, private_key, owner_address, vault_address):
         'nonce':
         w3.eth.get_transaction_count(owner_address),
         'gas':
-        1000000
+        100000
     })
 
     # Sign the transaction
@@ -61,7 +61,7 @@ def set_packages(w3, contract, private_key, owner_address, packages):
         The private key.
     packages : dict
         The packages dictionary.
-    
+
     Returns
     -------
     txn : dict
@@ -75,7 +75,7 @@ def set_packages(w3, contract, private_key, owner_address, packages):
             'nonce':
             w3.eth.get_transaction_count(owner_address),
             'gas':
-            1000000
+            100000
         })
 
     # Sign the transaction
@@ -146,7 +146,7 @@ def buy_mana(w3, contract, private_key, buyer_address, amounts):
 
 def withdraw_eth(w3, contract, private_key, owner_address, amount):
     """Withdraw ETH.
-    
+
     Parameters
     ----------
     w3 : Web3
@@ -159,7 +159,7 @@ def withdraw_eth(w3, contract, private_key, owner_address, amount):
         The owner address.
     amount : int
         The amount of Mana to withdraw.
-    
+
     Returns
     -------
     txn : dict
@@ -191,7 +191,7 @@ def withdraw_eth(w3, contract, private_key, owner_address, amount):
 
 def withdraw_all_eth(w3, contract, private_key, owner_address):
     """Withdraw all Mana.
-    
+
     Parameters
     ----------
     w3 : Web3
@@ -202,7 +202,7 @@ def withdraw_all_eth(w3, contract, private_key, owner_address):
         The private key.
     owner_address : str
         The owner address.
-    
+
     Returns
     -------
     txn : dict

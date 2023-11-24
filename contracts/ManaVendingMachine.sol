@@ -184,7 +184,6 @@ contract ManaVendingMachine is Ownable {
      * @param _amount uint256 The amount to withdraw.
      */
     function withdraw(uint256 _amount) external onlyOwner {
-        require(_amount <= contractBalance, "Insufficient contract balance");
         contractBalance -= _amount;
 
         (bool success, ) = vaultAddress.call{value: _amount}("");

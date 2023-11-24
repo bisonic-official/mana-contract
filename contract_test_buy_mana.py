@@ -8,7 +8,7 @@ from utils.buyer import buy_mana
 
 
 def main():
-    """The main function to mint and NFT."""
+    """The main function to test mana purchases."""
 
     # Load config and setup logger
     config = load_config('config.ini')
