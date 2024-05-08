@@ -120,7 +120,7 @@ describe("🔥 Mana purchase", function () {
 
 describe("🔥 Withdrawal tests", function () {
     it("Verify withdrawal of an amount", async function () {
-        const [signer] = await ethers.getSigners();
+        const [signer, buyer, vault] = await ethers.getSigners();
 
         const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
         const contract = await ManaVendingMachine.deploy();
@@ -130,20 +130,27 @@ describe("🔥 Withdrawal tests", function () {
         const manaPrice = [1, 2, 3];
         await contract.setPackages(manaQty, manaPrice);
 
+        // Set vault address
+        await contract.setVaultAddress(vault.address);
+        expect(await contract.vaultAddress()).to.equal(vault.address);
+
         // Buy packages and add funds to contract
-        await contract.purchasePackages(
+        await contract.connect(buyer).purchasePackages(
             [4, 4, 4],
-            { value: 24, from: signer.address }
+            { value: 24, from: buyer.address }
         );
 
         const beforeWithdraw = await contract.provider.getBalance(contract.address);
+        const beforeWithdrawVault = await contract.provider.getBalance(vault.address);
         expect(beforeWithdraw).to.equal(24);
         await contract.withdraw(10);
         expect(await contract.provider.getBalance(contract.address)).to.equal(14);
+        const afterWithdrawVault = await contract.provider.getBalance(vault.address);
+        expect(afterWithdrawVault).to.equal(beforeWithdrawVault.add(10));
     });
 
     it("Verify withdrawal of all funds", async function () {
-        const [signer] = await ethers.getSigners();
+        const [signer, buyer, vault] = await ethers.getSigners();
 
         const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
         const contract = await ManaVendingMachine.deploy();
@@ -153,15 +160,22 @@ describe("🔥 Withdrawal tests", function () {
         const manaPrice = [1, 2, 3];
         await contract.setPackages(manaQty, manaPrice);
 
+        // Set vault address
+        await contract.setVaultAddress(vault.address);
+        expect(await contract.vaultAddress()).to.equal(vault.address);
+
         // Buy packages and add funds to contract
-        await contract.purchasePackages(
+        await contract.connect(buyer).purchasePackages(
             [4, 4, 4],
-            { value: 24, from: signer.address }
+            { value: 24, from: buyer.address }
         );
 
         const beforeWithdraw = await contract.provider.getBalance(contract.address);
+        const beforeWithdrawVault = await contract.provider.getBalance(vault.address);
         expect(beforeWithdraw).to.equal(24);
         await contract.withdrawAll();
         expect(await contract.provider.getBalance(contract.address)).to.equal(0);
+        const afterWithdrawVault = await contract.provider.getBalance(vault.address);
+        expect(afterWithdrawVault).to.equal(beforeWithdrawVault.add(24));
     });
 });
