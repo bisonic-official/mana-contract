@@ -16,8 +16,18 @@ module.exports = {
   solidity: "0.8.18",
   networks: {
     goerli: {
-      url: `https://eth-goerli.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+      url: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
       accounts: [GOERLI_PRIVATE_KEY]
-    }
+    },
+    ronin: {
+      chainId: 2020,
+      url: 'https://api.roninchain.com/rpc',
+      accounts: ['0x0000000000000000000000000000000000000000000000000000000000000000']
+    },
+    saigon: {
+      chainId: 2021,
+      url: 'https://saigon-testnet.roninchain.com/rpc',
+      accounts: ['0x0000000000000000000000000000000000000000000000000000000000000000']
+    },
   }
 };
