@@ -25,7 +25,9 @@ async function main() {
     // Set vault address
     const contractWithSigner = contract.connect(signer);
     const vaultAddress = '0x0000000000000000000000000000000000000000';
-    // let transaction = await contractWithSigner.setVaultAddress(vaultAddress);
+    // let transaction = await contractWithSigner.setVaultAddress(
+    //     vaultAddress, { gasPrice: 30000000000 }
+    // );
     // await transaction.wait();
     // console.log("Mana new vault address:", await contract.vaultAddress());
 
@@ -33,21 +35,27 @@ async function main() {
     console.log("Mana packages:", await contract.getPackages());
 
     // Set packages
-    // const manaQty = [1000, 2000, 3000];
+    // const manaQty = [800, 4500, 12500];
     // const manaPrice = [
-    //     ethers.utils.parseEther('0.01'),
     //     ethers.utils.parseEther('0.02'),
-    //     ethers.utils.parseEther('0.03')
+    //     ethers.utils.parseEther('0.1'),
+    //     ethers.utils.parseEther('0.25')
     // ];
-    // transaction = await contractWithSigner.setPackages(manaQty, manaPrice);
+    // transaction = await contractWithSigner.setPackages(
+    //     manaQty, manaPrice, { gasPrice: 30000000000 }
+    // );
     // await transaction.wait();
     // console.log("Mana new packages (after setup):", await contract.getPackages());
 
     // Purchase packages
-    transaction = await contractWithSigner.purchasePackages(
-        [2, 1, 1], // 100 * 3 + 200 * 2 + 300 * 1 = 1000
-        { value: ethers.utils.parseEther('0.07'), from: signer.address }
-    );
+    // transaction = await contractWithSigner.purchasePackages(
+    //     [1, 0, 1], // 0.02 * 1 + 0.1 * 0 + 0.25 * 1 = 0.27
+    //     {
+    //         value: ethers.utils.parseEther('0.27'),
+    //         from: signer.address,
+    //         gasPrice: 30000000000
+    //     }
+    // );
     await transaction.wait();
 
     // Get mana balance

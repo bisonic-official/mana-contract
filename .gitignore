@@ -1,5 +1,7 @@
 # Extras
-cache/
+cache
+deployments
+coverage
 .DS_Store
 
 # Byte-compiled / optimized / DLL files
