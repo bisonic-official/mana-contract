@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -18,18 +18,21 @@ contract ManaVendingMachine is Ownable {
     uint256 public contractBalance;
 
     /**
-     * @notice Mana balances.
-     * @notice This mapping stores the mana balance of each address.
+     * @notice Package struct.
+     * @notice This struct defines the mana quantity and price of a package.
      */
-    mapping(address => uint256) public manaBalances;
+    struct Package {
+        string packageId;
+        uint256 price;
+    }
 
     /**
      * @notice Package struct.
      * @notice This struct defines the mana quantity and price of a package.
      */
-    struct Package {
-        uint256 manaQty;
-        uint256 price;
+    struct Balances {
+        uint256 packageIndex;
+        uint256 quantity;
     }
 
     /**
@@ -41,32 +44,44 @@ contract ManaVendingMachine is Ownable {
      * @notice Number of packages.
      * @notice This number should be the same as the length of the packages array.
      */
-    uint8 public pkgQty = 3;
+    uint8 public pkgQty = 50;
     Package[] public packages;
 
     /**
-     * @dev Event for purchase packages.
-     * @param buyer address The address of the buyer.
-     * @param quantities uint256[] The quantity of each package purchased.
-     * @param totalEth uint256 The total eth spent.
-     * @param totalMana uint256 The total mana purchased.
+     * @notice Package balances.
+     * @notice This mapping stores the package balance of each address.
      */
-    event PurchasePackages(
+    mapping(address => mapping(uint256 => uint256)) public packageBalances;
+    mapping(address => uint256[]) private packageKeys;
+
+    /**
+     * @dev Event to be emited on purchase.
+     * @param buyer address The address of the buyer.
+     * @param quantity uint256[] The quantity of the purchased packages.
+     */
+    event PurchaseEvent(address buyer, uint256[] quantity);
+
+    /**
+     * @dev Event to be emited on purchase.
+     * @param buyer address The address of the buyer.
+     * @param packageIndex uint256 The index of the purchased package.
+     * @param quantity uint256 The quantity of the purchased package.
+     */
+    event PackagePurchased(
         address buyer,
-        uint256[] quantities,
-        uint256 totalEth,
-        uint256 totalMana
+        uint256 packageIndex,
+        uint256 quantity
     );
 
     /**
      * @dev Constructor function.
      */
-    constructor() {
+    constructor() Ownable(msg.sender) {
         // Set the owner and vaultAddress as the contract creator
         vaultAddress = payable(msg.sender);
 
         for (uint8 i = 0; i < pkgQty; i++) {
-            packages.push(Package(0, MAX_INT));
+            packages.push(Package("0x0", MAX_INT));
         }
     }
 
@@ -91,8 +106,21 @@ contract ManaVendingMachine is Ownable {
      * @param _address address The address to check.
      * @return uint The mana balance.
      */
-    function getManaBalance(address _address) public view returns (uint) {
-        return manaBalances[_address];
+    function getBalances(
+        address _address
+    ) public view returns (Balances[] memory) {
+        uint256 length = packageKeys[_address].length;
+        Balances[] memory balances = new Balances[](length);
+
+        for (uint256 i = 0; i < length; i++) {
+            uint256 packageId = packageKeys[_address][i];
+            balances[i] = Balances(
+                packageId,
+                packageBalances[_address][packageId]
+            );
+        }
+
+        return balances;
     }
 
     /**
@@ -105,78 +133,82 @@ contract ManaVendingMachine is Ownable {
 
     /**
      * @dev Get a package from its id.
-     * @param pkgId uint8 The id of the package.
+     * @param packageIndex uint8 The index of the package.
      * @return Package The package.
      */
-    function getPackageFromId(
-        uint8 pkgId
+    function getPackageFromIndex(
+        uint8 packageIndex
     ) public view returns (Package memory) {
         // Id should be in the size of the packages array
         require(
-            pkgId < packages.length,
-            "The pkgId must be in the size of the packages array"
+            packageIndex < packages.length,
+            "The packageIndex must be in the size of the packages array"
         );
 
-        return packages[pkgId];
+        return packages[packageIndex];
     }
 
     /**
      * @dev Set the packages.
-     * @param _manaQty uint256[] The quantity of mana of each package.
-     * @param _prices uint256[] The price of each package.
+     * @param _packageIds string[] An array with the Id of each package.
+     * @param _prices uint256[] An array with the price of each package.
      */
     function setPackages(
-        uint256[] calldata _manaQty,
+        string[] calldata _packageIds,
         uint256[] calldata _prices
     ) external onlyOwner {
         // Arrays should be the same length
         require(
-            _manaQty.length == _prices.length,
-            "Mana quantity and prices arrays must have the same length"
+            _packageIds.length == _prices.length,
+            "Packages Ids and prices arrays must have the same length"
         );
 
         // Arrays should be the same size as pkgQty (packages quantity)
         require(
-            _manaQty.length == pkgQty,
-            "Mana quantity and prices arrays must be same length as pkgQty"
+            _packageIds.length == pkgQty,
+            "Packages Ids and prices arrays must have the same length as pkgQty"
         );
 
         // Loop through the arrays and create the packages
-        for (uint8 i = 0; i < _manaQty.length; i++) {
-            packages[i] = Package(_manaQty[i], _prices[i]);
+        for (uint8 i = 0; i < _packageIds.length; i++) {
+            packages[i] = Package(_packageIds[i], _prices[i]);
         }
     }
 
     /**
      * @dev Purchase packages.
-     * @param _qty uint256[] The quantity of each package to purchase.
+     * @param _quantity uint256[] The quantity of each package to purchase.
      */
-    function purchasePackages(uint256[] memory _qty) public payable {
+    function purchasePackages(uint256[] memory _quantity) public payable {
         // Array should be the same length as the number of packages
         require(
-            _qty.length == packages.length,
+            _quantity.length == packages.length,
             "The length of the array is not the same as the number of packages"
         );
 
         // Loop through the array to calculate the total price
-        uint256 totalEth = 0;
-        uint256 totalMana = 0;
-        for (uint8 i = 0; i < _qty.length; i++) {
-            totalEth += packages[i].price * _qty[i];
-            totalMana += packages[i].manaQty * _qty[i];
+        uint256 totalPrice = 0;
+        for (uint8 i = 0; i < _quantity.length; i++) {
+            totalPrice += packages[i].price * _quantity[i];
         }
 
         // Check if the value sent is enough
-        require(msg.value == totalEth, "Value sent is not exact");
+        require(msg.value == totalPrice, "Value sent is not exact");
 
-        // Add the mana to the user's balance
-        manaBalances[msg.sender] += totalMana;
+        // Update the user's balance
+        for (uint8 i = 0; i < _quantity.length; i++) {
+            if (_quantity[i] != 0) {
+                packageKeys[msg.sender].push(i);
+                packageBalances[msg.sender][i] += _quantity[i];
+                emit PackagePurchased(msg.sender, i, _quantity[i]);
+            }
+        }
 
         // Save the value to the contract balance
-        contractBalance += totalEth;
+        contractBalance += totalPrice;
 
         // Emit the event
-        emit PurchasePackages(msg.sender, _qty, totalEth, totalMana);
+        // emit PurchaseEvent(msg.sender, _quantity);
     }
 
     /**

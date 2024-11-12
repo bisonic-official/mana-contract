@@ -1,181 +1,255 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("🔥 Contract deployment", function () {
-    it("Verify contract owner", async function () {
-        const [signer] = await ethers.getSigners();
+describe("📝 Mana Contract", function () {
+    let ManaVendingMachine, contract, owner, addr1, addr2;
 
-        const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
-        const contract = await ManaVendingMachine.deploy();
+    beforeEach(async function () {
+        [owner, addr1, addr2, signer] = await ethers.getSigners();
 
-        expect(await contract.owner()).to.equal(signer.address);
+        // Deploy the Token contract
+        ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
+        contract = await ManaVendingMachine.deploy();
+        await contract.waitForDeployment();
     });
 
-    it("Verify packages initial quantity", async function () {
-        const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
-        const contract = await ManaVendingMachine.deploy();
+    it("🔥 Should verify contract owner", async function () {
+        expect(await contract.owner()).to.equal(owner.address);
+    });
 
+    it("🔥 Should verify packages initial quantity", async function () {
         const pkgQty = await contract.getPkgQty();
         const pkgs = await contract.getPackages();
         const n_elements = Object.keys(pkgs).length;
         expect(pkgQty).to.equal(n_elements);
     });
 
-    it("Verify getter of packages", async function () {
-        const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
-        const contract = await ManaVendingMachine.deploy();
-
+    it("🔥 Should verify getter of packages", async function () {
         expect(await contract.getPackages()).to.not.be.empty;
         const pkgs = await contract.getPackages();
+        expect(pkgs.length).to.equal(50);
 
         for (const values in pkgs) {
+            expect(pkgs[values]['packageId']).to.equal('0x0');
             expect(pkgs[values]['price']).to.equal(BigInt(Math.pow(2, 256)) - BigInt(1));
-            expect(pkgs[values]['manaQty']).to.equal(0);
         }
 
         // Get packages from Id
         await expect(
-            contract.getPackageFromId(10)
-        ).to.be.revertedWith("The pkgId must be in the size of the packages array");
+            contract.getPackageFromIndex(60)
+        ).to.be.revertedWith("The packageIndex must be in the size of the packages array");
 
-        const pkg = await contract.getPackageFromId(0);
+        const pkg = await contract.getPackageFromIndex(0);
+        expect(pkg['packageId']).to.equal('0x0');
         expect(pkg['price']).to.equal(BigInt(Math.pow(2, 256)) - BigInt(1));
-        expect(pkg['manaQty']).to.equal(0);
     });
 
-    it("Verify setter of packages", async function () {
-        const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
-        const contract = await ManaVendingMachine.deploy();
-
+    it("🔥 Should verify setter of packages", async function () {
         // Set vault address
-        contract.setVaultAddress("0x0d72fD549214Eb53cC241f400B147364e926E15B");
-        expect(await contract.vaultAddress()).to.equal("0x0d72fD549214Eb53cC241f400B147364e926E15B");
+        await contract.connect(owner).setVaultAddress(addr1.address);
+        expect(await contract.vaultAddress()).to.equal(addr1.address);
 
         // Set packages and verify modified values
-        const manaQty1 = [100, 200, 300];
-        const manaPrice1 = [1, 2, 3];
+        const pkgSize = 50;
+        const packageIds = Array(pkgSize).fill('0x0');
+        const packagePrices = Array(pkgSize).fill(0);
 
-        await contract.setPackages(manaQty1, manaPrice1);
+        packageIds[0] = 'Package 1';
+        packageIds[1] = 'Package 2';
+        packageIds[2] = 'Package 3';
+
+        packagePrices[0] = 1;
+        packagePrices[1] = 2;
+        packagePrices[2] = 3;
+
+        await contract.setPackages(packageIds, packagePrices);
         const pkgs = await contract.getPackages();
 
         for (const values in pkgs) {
-            expect(pkgs[values]['manaQty']).to.equal(manaQty1[values]);
-            expect(pkgs[values]['price']).to.equal(manaPrice1[values]);
+            expect(pkgs[values]['packageId']).to.equal(packageIds[values]);
+            expect(pkgs[values]['price']).to.equal(packagePrices[values]);
         }
 
         // Revert with unmatching arrays
-        const manaQty2 = [100, 200, 300, 400];
-        const manaPrice2 = [1, 2, 3];
+        let badPackageIds = Array(pkgSize + 1).fill('0x0');
+        let badPackagePrices = Array(pkgSize).fill(0);
 
         await expect(
-            contract.setPackages(manaQty2, manaPrice2)
-        ).to.be.revertedWith("Mana quantity and prices arrays must have the same length");
+            contract.setPackages(badPackageIds, badPackagePrices)
+        ).to.be.revertedWith("Packages Ids and prices arrays must have the same length");
 
         // Revert with unmatching sizes with pkgQty
-        const manaQty3 = [100, 200, 300, 400];
-        const manaPrice3 = [1, 2, 3, 400];
+        badPackageIds = Array(pkgSize + 1).fill('0x0');
+        badPackagePrices = Array(pkgSize + 1).fill(0);
 
         await expect(
-            contract.setPackages(manaQty3, manaPrice3)
-        ).to.be.revertedWith("Mana quantity and prices arrays must be same length as pkgQty");
+            contract.setPackages(badPackageIds, badPackagePrices)
+        ).to.be.revertedWith("Packages Ids and prices arrays must have the same length as pkgQty");
     });
-});
 
-describe("🔥 Mana purchase", function () {
-    it("Purchase should rever with bad qty input", async function () {
-        const [signer] = await ethers.getSigners();
-
-        const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
-        const contract = await ManaVendingMachine.deploy();
-
+    it("🔥 Purchase should revert with bad quantity input", async function () {
         await expect(
-            contract.purchasePackages([0, 1], { value: 1, from: signer.address })
+            contract.purchasePackages([0, 1], { value: 1, from: owner.address })
         ).to.be.revertedWith("The length of the array is not the same as the number of packages");
 
     });
 
-    it("Verify purchase", async function () {
-        const [signer] = await ethers.getSigners();
-
-        const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
-        const contract = await ManaVendingMachine.deploy();
-
+    it("🔥 Purchase should revert inexact value sent", async function () {
         // Set packages
-        const manaQty = [100, 200, 300];
-        const manaPrice = [1, 2, 3];
-        await contract.setPackages(manaQty, manaPrice);
+        const pkgSize = 50;
+        const packageIds = Array(pkgSize).fill('0x0');
+        const packagePrices = Array(pkgSize).fill(0);
 
-        await contract.purchasePackages(
-            [0, 2, 4],
-            { value: 16, from: signer.address }
+        packageIds[0] = 'Package 1';
+        packageIds[1] = 'Package 2';
+        packageIds[2] = 'Package 3';
+
+        packagePrices[0] = 1;
+        packagePrices[1] = 2;
+        packagePrices[2] = 3;
+
+        await contract.setPackages(packageIds, packagePrices);
+
+         // Purchase packages
+         const packageList = Array(pkgSize).fill(0);
+         packageList[0] = 1;
+         packageList[1] = 1;
+         packageList[2] = 1;
+ 
+         await expect(contract.connect(owner).purchasePackages(
+             packageList,
+             { value: 10, from: owner.address }
+         )).to.be.revertedWith("Value sent is not exact");
+
+    });
+
+    it("🔥 Should verify purchase, package index, and balances", async function () {
+        // Set packages
+        const pkgSize = 50;
+        const packageIds = Array(pkgSize).fill('0x0');
+        const packagePrices = Array(pkgSize).fill(0);
+
+        packageIds[0] = 'Package 1';
+        packageIds[1] = 'Package 2';
+        packageIds[2] = 'Package 3';
+
+        packagePrices[0] = 1;
+        packagePrices[1] = 2;
+        packagePrices[2] = 3;
+
+        await contract.setPackages(packageIds, packagePrices);
+
+        // Purchase packages
+        const packageList = Array(pkgSize).fill(0);
+        packageList[0] = 3;
+        packageList[1] = 2;
+        packageList[2] = 1;
+
+        await contract.connect(addr1).purchasePackages(
+            packageList,
+            { value: 10, from: addr1.address }
         );
 
-        const expectedBalance = 2 * 200 + 4 * 300;
-        expect(await contract.getManaBalance(signer.address)).to.equal(expectedBalance);
+        // Verify purchase balances
+        const balances = await contract.getBalances(addr1.address);
+        for (const value in balances) {
+            expect(parseInt(balances[value][1])).to.equal(packageList[value]);
+        }
 
-        expect(await contract.provider.getBalance(contract.address)).to.equal(16);
+        // Verify contract balance
+        expect(await contract.contractBalance()).to.equal(10);
     });
-});
 
-
-describe("🔥 Withdrawal tests", function () {
-    it("Verify withdrawal of an amount", async function () {
-        const [signer, buyer, vault] = await ethers.getSigners();
-
-        const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
-        const contract = await ManaVendingMachine.deploy();
+    it("🔥 Should verify withdrawal of an amount", async function () {
+        // Define vault address
+        const vault = addr2;
+        const buyer = addr1;
 
         // Set packages
-        const manaQty = [100, 200, 300];
-        const manaPrice = [1, 2, 3];
-        await contract.setPackages(manaQty, manaPrice);
+        const pkgSize = 50;
+        const packageIds = Array(pkgSize).fill('0x0');
+        const packagePrices = Array(pkgSize).fill(0);
+
+        packageIds[0] = 'Package 1';
+        packageIds[1] = 'Package 2';
+        packageIds[2] = 'Package 3';
+
+        packagePrices[0] = 1;
+        packagePrices[1] = 2;
+        packagePrices[2] = 3;
+
+        await contract.setPackages(packageIds, packagePrices);
 
         // Set vault address
-        await contract.setVaultAddress(vault.address);
+        await contract.connect(owner).setVaultAddress(vault.address);
         expect(await contract.vaultAddress()).to.equal(vault.address);
 
         // Buy packages and add funds to contract
+        const packageList = Array(pkgSize).fill(0);
+        packageList[0] = 3;
+        packageList[1] = 2;
+        packageList[2] = 1;
+
         await contract.connect(buyer).purchasePackages(
-            [4, 4, 4],
-            { value: 24, from: buyer.address }
+            packageList,
+            { value: 10, from: buyer.address }
         );
 
-        const beforeWithdraw = await contract.provider.getBalance(contract.address);
-        const beforeWithdrawVault = await contract.provider.getBalance(vault.address);
-        expect(beforeWithdraw).to.equal(24);
-        await contract.withdraw(10);
-        expect(await contract.provider.getBalance(contract.address)).to.equal(14);
-        const afterWithdrawVault = await contract.provider.getBalance(vault.address);
-        expect(afterWithdrawVault).to.equal(beforeWithdrawVault.add(10));
+        // Get balances before withdrawal
+        const beforeWithdraw = await contract.contractBalance();
+        const beforeWithdrawVault = await ethers.provider.getBalance(vault.address);
+        expect(beforeWithdraw).to.equal(10);
+
+        // Withdraw 10 units
+        await contract.connect(owner).withdraw(5);
+        expect(await contract.contractBalance()).to.equal(5);
+
+        // Verify amounts
+        const afterWithdrawVault = await ethers.provider.getBalance(vault.address);
+        expect(afterWithdrawVault).to.equal(beforeWithdrawVault + 5n);
     });
 
-    it("Verify withdrawal of all funds", async function () {
-        const [signer, buyer, vault] = await ethers.getSigners();
-
-        const ManaVendingMachine = await ethers.getContractFactory("ManaVendingMachine");
-        const contract = await ManaVendingMachine.deploy();
+    it("🔥 Should verify withdrawal of all funds", async function () {
+        // Define vault address
+        const vault = addr2;
+        const buyer = addr1;
 
         // Set packages
-        const manaQty = [100, 200, 300];
-        const manaPrice = [1, 2, 3];
-        await contract.setPackages(manaQty, manaPrice);
+        const pkgSize = 50;
+        const packageIds = Array(pkgSize).fill('0x0');
+        const packagePrices = Array(pkgSize).fill(0);
+
+        packageIds[0] = 'Package 1';
+        packageIds[1] = 'Package 2';
+        packageIds[2] = 'Package 3';
+
+        packagePrices[0] = 1;
+        packagePrices[1] = 2;
+        packagePrices[2] = 3;
+
+        await contract.setPackages(packageIds, packagePrices);
 
         // Set vault address
-        await contract.setVaultAddress(vault.address);
+        await contract.connect(owner).setVaultAddress(vault.address);
         expect(await contract.vaultAddress()).to.equal(vault.address);
 
         // Buy packages and add funds to contract
+        const packageList = Array(pkgSize).fill(0);
+        packageList[0] = 3;
+        packageList[1] = 2;
+        packageList[2] = 1;
+
         await contract.connect(buyer).purchasePackages(
-            [4, 4, 4],
-            { value: 24, from: buyer.address }
+            packageList,
+            { value: 10, from: buyer.address }
         );
 
-        const beforeWithdraw = await contract.provider.getBalance(contract.address);
-        const beforeWithdrawVault = await contract.provider.getBalance(vault.address);
-        expect(beforeWithdraw).to.equal(24);
+        const beforeWithdraw = await contract.contractBalance();
+        const beforeWithdrawVault = await ethers.provider.getBalance(vault.address);
+        expect(beforeWithdraw).to.equal(10);
         await contract.withdrawAll();
-        expect(await contract.provider.getBalance(contract.address)).to.equal(0);
-        const afterWithdrawVault = await contract.provider.getBalance(vault.address);
-        expect(afterWithdrawVault).to.equal(beforeWithdrawVault.add(24));
+        expect(await contract.contractBalance()).to.equal(0);
+        const afterWithdrawVault = await ethers.provider.getBalance(vault.address);
+        expect(afterWithdrawVault).to.equal(beforeWithdrawVault + 10n);
     });
 });
