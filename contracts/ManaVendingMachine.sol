@@ -62,18 +62,6 @@ contract ManaVendingMachine is Ownable {
     event PurchaseEvent(address buyer, uint256[] quantity);
 
     /**
-     * @dev Event to be emited on purchase.
-     * @param buyer address The address of the buyer.
-     * @param packageIndex uint256 The index of the purchased package.
-     * @param quantity uint256 The quantity of the purchased package.
-     */
-    event PackagePurchased(
-        address buyer,
-        uint256 packageIndex,
-        uint256 quantity
-    );
-
-    /**
      * @dev Constructor function.
      */
     constructor() Ownable(msg.sender) {
@@ -200,7 +188,6 @@ contract ManaVendingMachine is Ownable {
             if (_quantity[i] != 0) {
                 packageKeys[msg.sender].push(i);
                 packageBalances[msg.sender][i] += _quantity[i];
-                emit PackagePurchased(msg.sender, i, _quantity[i]);
             }
         }
 
@@ -208,7 +195,7 @@ contract ManaVendingMachine is Ownable {
         contractBalance += totalPrice;
 
         // Emit the event
-        // emit PurchaseEvent(msg.sender, _quantity);
+        emit PurchaseEvent(msg.sender, _quantity);
     }
 
     /**
