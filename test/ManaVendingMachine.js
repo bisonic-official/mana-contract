@@ -121,6 +121,16 @@ describe("📝 Mana Contract", function () {
              { value: 10, from: owner.address }
          )).to.be.revertedWith("Value sent is not exact");
 
+        // Purchase single package
+        const _index = 100;
+        const _qty = 3;
+        await expect(
+            contract.connect(addr1).purchasePackage(
+                _index, _qty,
+                { value: 3, from: addr1.address }
+            )
+        ).to.be.revertedWith("The index of package is not valid");
+
     });
 
     it("🔥 Should verify purchase, package index, and balances", async function () {
@@ -158,6 +168,23 @@ describe("📝 Mana Contract", function () {
 
         // Verify contract balance
         expect(await contract.contractBalance()).to.equal(10);
+
+        // Purchase single package
+        const _index = 1;
+        const _qty = 3;
+        await contract.connect(addr2).purchasePackage(
+            _index, _qty,
+            { value: 6, from: addr2.address }
+        )
+
+        // Verify purchase balances
+        const addr2_balances = await contract.getBalances(addr2.address);
+        for (const value in addr2_balances) {
+            expect(parseInt(addr2_balances[value][1])).to.equal(_qty);
+        }
+
+        // Verify contract balance
+        expect(await contract.contractBalance()).to.equal(16);
     });
 
     it("🔥 Should verify withdrawal of an amount", async function () {

@@ -199,6 +199,45 @@ contract ManaVendingMachine is Ownable {
     }
 
     /**
+     * @dev Purchase packages.
+     * @param _index uint256 The index of the package to purchase.
+     * @param _quantity uint256 The quantity of the package to purchase.
+     */
+    function purchasePackage(uint256 _index, uint256 _quantity) public payable {
+        // Array should be the same length as the number of packages
+        require(
+            _index >= 0 && _index < pkgQty,
+            "The index of package is not valid"
+        );
+
+        // Loop through the array to calculate the total price
+        uint256 totalPrice = packages[_index].price * _quantity;
+
+        // Check if the value sent is enough
+        require(msg.value == totalPrice, "Value sent is not exact");
+
+        // Update the user's balance
+        packageKeys[msg.sender].push(_index);
+        packageBalances[msg.sender][_index] += _quantity;
+
+        // Save the value to the contract balance
+        contractBalance += totalPrice;
+
+        // Emit the event
+        uint256[] memory _quantityArray = new uint256[](pkgQty);
+        // Update the user's balance
+        for (uint8 i = 0; i < pkgQty; i++) {
+            if (_index == i) {
+                _quantityArray[i] = _quantity;
+            } else {
+                _quantityArray[i] = 0;
+            }
+        }
+
+        emit PurchaseEvent(msg.sender, _quantityArray);
+    }
+
+    /**
      * @dev Withdraw funds to the vault using call.
      * @param _amount uint256 The amount to withdraw.
      */

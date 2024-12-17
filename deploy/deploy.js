@@ -3,7 +3,7 @@ const func = async function (hre) {
     const { deploy } = deployments;
 
     const { deployer } = await getNamedAccounts();
-    console.log("Deploying contract with the account:", deployer);
+    console.log("[INFO] Deploying contract with the account:", deployer);
 
     try {
         await deploy('ManaVendingMachine', {
@@ -13,7 +13,7 @@ const func = async function (hre) {
             gasPrice: 30000000000
         });
     } catch (error) {
-        console.error("Error deploying contracts:", error);
+        console.error("[ERROR] Error deploying contract:", error);
     }
 };
 
