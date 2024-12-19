@@ -27,15 +27,6 @@ contract ManaVendingMachine is Ownable {
     }
 
     /**
-     * @notice Package struct.
-     * @notice This struct defines the mana quantity and price of a package.
-     */
-    struct Balances {
-        uint256 packageIndex;
-        uint256 quantity;
-    }
-
-    /**
      * @notice Define maximum integer value.
      */
     uint256 MAX_INT = type(uint256).max;
@@ -48,18 +39,12 @@ contract ManaVendingMachine is Ownable {
     Package[] public packages;
 
     /**
-     * @notice Package balances.
-     * @notice This mapping stores the package balance of each address.
-     */
-    mapping(address => mapping(uint256 => uint256)) public packageBalances;
-    mapping(address => uint256[]) private packageKeys;
-
-    /**
      * @dev Event to be emited on purchase.
      * @param buyer address The address of the buyer.
-     * @param quantity uint256[] The quantity of the purchased packages.
+     * @param package uint256 The index of the purchased packages.
+     * @param quantity uint256 The quantity of the purchased packages.
      */
-    event PurchaseEvent(address buyer, uint256[] quantity);
+    event PurchaseEvent(address buyer, uint256 package, uint256 quantity);
 
     /**
      * @dev Constructor function.
@@ -87,28 +72,6 @@ contract ManaVendingMachine is Ownable {
      */
     function getPkgQty() public view returns (uint8) {
         return pkgQty;
-    }
-
-    /**
-     * @dev Get the mana balance of an address.
-     * @param _address address The address to check.
-     * @return uint The mana balance.
-     */
-    function getBalances(
-        address _address
-    ) public view returns (Balances[] memory) {
-        uint256 length = packageKeys[_address].length;
-        Balances[] memory balances = new Balances[](length);
-
-        for (uint256 i = 0; i < length; i++) {
-            uint256 packageId = packageKeys[_address][i];
-            balances[i] = Balances(
-                packageId,
-                packageBalances[_address][packageId]
-            );
-        }
-
-        return balances;
     }
 
     /**
@@ -165,37 +128,35 @@ contract ManaVendingMachine is Ownable {
 
     /**
      * @dev Purchase packages.
-     * @param _quantity uint256[] The quantity of each package to purchase.
+     * @param _indices uint256[] The indices of each package to purchase.
+     * @param _quantities uint256[] The quantity of each package to purchase.
      */
-    function purchasePackages(uint256[] memory _quantity) public payable {
+    function purchasePackages(
+        uint256[] memory _indices,
+        uint256[] memory _quantities
+    ) public payable {
         // Array should be the same length as the number of packages
         require(
-            _quantity.length == packages.length,
-            "The length of the array is not the same as the number of packages"
+            _quantities.length == _indices.length,
+            "The length of the indices is not the same as the quantities"
         );
 
         // Loop through the array to calculate the total price
         uint256 totalPrice = 0;
-        for (uint8 i = 0; i < _quantity.length; i++) {
-            totalPrice += packages[i].price * _quantity[i];
+        for (uint8 i = 0; i < _indices.length; i++) {
+            totalPrice += packages[_indices[i]].price * _quantities[i];
         }
 
         // Check if the value sent is enough
         require(msg.value == totalPrice, "Value sent is not exact");
 
-        // Update the user's balance
-        for (uint8 i = 0; i < _quantity.length; i++) {
-            if (_quantity[i] != 0) {
-                packageKeys[msg.sender].push(i);
-                packageBalances[msg.sender][i] += _quantity[i];
-            }
-        }
-
         // Save the value to the contract balance
         contractBalance += totalPrice;
 
-        // Emit the event
-        emit PurchaseEvent(msg.sender, _quantity);
+        // Emit the events
+        for (uint8 i = 0; i < _indices.length; i++) {
+            emit PurchaseEvent(msg.sender, _indices[i], _quantities[i]);
+        }
     }
 
     /**
@@ -216,25 +177,11 @@ contract ManaVendingMachine is Ownable {
         // Check if the value sent is enough
         require(msg.value == totalPrice, "Value sent is not exact");
 
-        // Update the user's balance
-        packageKeys[msg.sender].push(_index);
-        packageBalances[msg.sender][_index] += _quantity;
-
         // Save the value to the contract balance
         contractBalance += totalPrice;
 
         // Emit the event
-        uint256[] memory _quantityArray = new uint256[](pkgQty);
-        // Update the user's balance
-        for (uint8 i = 0; i < pkgQty; i++) {
-            if (_index == i) {
-                _quantityArray[i] = _quantity;
-            } else {
-                _quantityArray[i] = 0;
-            }
-        }
-
-        emit PurchaseEvent(msg.sender, _quantityArray);
+        emit PurchaseEvent(msg.sender, _index, _quantity);
     }
 
     /**

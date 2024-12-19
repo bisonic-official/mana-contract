@@ -89,8 +89,8 @@ describe("📝 Mana Contract", function () {
 
     it("🔥 Purchase should revert with bad quantity input", async function () {
         await expect(
-            contract.purchasePackages([0, 1], { value: 1, from: owner.address })
-        ).to.be.revertedWith("The length of the array is not the same as the number of packages");
+            contract.purchasePackages([0, 1], [0], { value: 1, from: owner.address })
+        ).to.be.revertedWith("The length of the indices is not the same as the quantities");
 
     });
 
@@ -112,12 +112,16 @@ describe("📝 Mana Contract", function () {
 
          // Purchase packages
          const packageList = Array(pkgSize).fill(0);
-         packageList[0] = 1;
+         const packageQty = Array(pkgSize).fill(0);
+         packageList[0] = 0;
          packageList[1] = 1;
-         packageList[2] = 1;
+         packageList[2] = 2;
+         packageQty[0] = 1;
+         packageQty[1] = 1;
+         packageQty[2] = 1;
  
          await expect(contract.connect(owner).purchasePackages(
-             packageList,
+             packageList, packageQty,
              { value: 10, from: owner.address }
          )).to.be.revertedWith("Value sent is not exact");
 
@@ -151,23 +155,21 @@ describe("📝 Mana Contract", function () {
 
         // Purchase packages
         const packageList = Array(pkgSize).fill(0);
-        packageList[0] = 3;
-        packageList[1] = 2;
-        packageList[2] = 1;
+        const packageQty = Array(pkgSize).fill(0);
+        packageList[0] = 0;
+        packageList[1] = 1;
+        packageList[2] = 2;
+        packageQty[0] = 1;
+        packageQty[1] = 1;
+        packageQty[2] = 1;
 
         await contract.connect(addr1).purchasePackages(
-            packageList,
-            { value: 10, from: addr1.address }
+            packageList, packageQty,
+            { value: 6, from: addr1.address }
         );
 
-        // Verify purchase balances
-        const balances = await contract.getBalances(addr1.address);
-        for (const value in balances) {
-            expect(parseInt(balances[value][1])).to.equal(packageList[value]);
-        }
-
         // Verify contract balance
-        expect(await contract.contractBalance()).to.equal(10);
+        expect(await contract.contractBalance()).to.equal(6);
 
         // Purchase single package
         const _index = 1;
@@ -177,14 +179,8 @@ describe("📝 Mana Contract", function () {
             { value: 6, from: addr2.address }
         )
 
-        // Verify purchase balances
-        const addr2_balances = await contract.getBalances(addr2.address);
-        for (const value in addr2_balances) {
-            expect(parseInt(addr2_balances[value][1])).to.equal(_qty);
-        }
-
         // Verify contract balance
-        expect(await contract.contractBalance()).to.equal(16);
+        expect(await contract.contractBalance()).to.equal(12);
     });
 
     it("🔥 Should verify withdrawal of an amount", async function () {
@@ -213,12 +209,16 @@ describe("📝 Mana Contract", function () {
 
         // Buy packages and add funds to contract
         const packageList = Array(pkgSize).fill(0);
-        packageList[0] = 3;
-        packageList[1] = 2;
-        packageList[2] = 1;
+        const packageQty = Array(pkgSize).fill(0);
+        packageList[0] = 0;
+        packageList[1] = 1;
+        packageList[2] = 2;
+        packageQty[0] = 3;
+        packageQty[1] = 2;
+        packageQty[2] = 1;
 
         await contract.connect(buyer).purchasePackages(
-            packageList,
+            packageList, packageQty,
             { value: 10, from: buyer.address }
         );
 
@@ -262,12 +262,16 @@ describe("📝 Mana Contract", function () {
 
         // Buy packages and add funds to contract
         const packageList = Array(pkgSize).fill(0);
-        packageList[0] = 3;
-        packageList[1] = 2;
-        packageList[2] = 1;
+        const packageQty = Array(pkgSize).fill(0);
+        packageList[0] = 0;
+        packageList[1] = 1;
+        packageList[2] = 2;
+        packageQty[0] = 3;
+        packageQty[1] = 2;
+        packageQty[2] = 1;
 
         await contract.connect(buyer).purchasePackages(
-            packageList,
+            packageList, packageQty,
             { value: 10, from: buyer.address }
         );
 
