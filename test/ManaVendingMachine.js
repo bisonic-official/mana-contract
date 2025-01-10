@@ -111,16 +111,16 @@ describe("📝 Mana Contract", function () {
         await contract.setPackages(packageIds, packagePrices);
 
          // Purchase packages
-         const packageList = Array(pkgSize).fill(0);
-         const packageQty = Array(pkgSize).fill(0);
+         const packageList = Array(3).fill(0);
+         const packageQty = Array(3).fill(0);
          packageList[0] = 0;
          packageList[1] = 1;
          packageList[2] = 2;
          packageQty[0] = 1;
          packageQty[1] = 1;
          packageQty[2] = 1;
- 
-         await expect(contract.connect(owner).purchasePackages(
+
+        await expect(contract.connect(owner).purchasePackages(
              packageList, packageQty,
              { value: 10, from: owner.address }
          )).to.be.revertedWith("Value sent is not exact");
@@ -154,8 +154,8 @@ describe("📝 Mana Contract", function () {
         await contract.setPackages(packageIds, packagePrices);
 
         // Purchase packages
-        const packageList = Array(pkgSize).fill(0);
-        const packageQty = Array(pkgSize).fill(0);
+        const packageList = Array(3).fill(0);
+        const packageQty = Array(3).fill(0);
         packageList[0] = 0;
         packageList[1] = 1;
         packageList[2] = 2;
@@ -208,8 +208,8 @@ describe("📝 Mana Contract", function () {
         expect(await contract.vaultAddress()).to.equal(vault.address);
 
         // Buy packages and add funds to contract
-        const packageList = Array(pkgSize).fill(0);
-        const packageQty = Array(pkgSize).fill(0);
+        const packageList = Array(3).fill(0);
+        const packageQty = Array(3).fill(0);
         packageList[0] = 0;
         packageList[1] = 1;
         packageList[2] = 2;
@@ -261,8 +261,8 @@ describe("📝 Mana Contract", function () {
         expect(await contract.vaultAddress()).to.equal(vault.address);
 
         // Buy packages and add funds to contract
-        const packageList = Array(pkgSize).fill(0);
-        const packageQty = Array(pkgSize).fill(0);
+        const packageList = Array(3).fill(0);
+        const packageQty = Array(3).fill(0);
         packageList[0] = 0;
         packageList[1] = 1;
         packageList[2] = 2;

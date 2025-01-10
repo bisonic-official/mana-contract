@@ -144,6 +144,12 @@ contract ManaVendingMachine is Ownable {
         // Loop through the array to calculate the total price
         uint256 totalPrice = 0;
         for (uint8 i = 0; i < _indices.length; i++) {
+            require(
+                _indices[i] >= 0 && _indices[i] < pkgQty,
+                "Package id not valid"
+            );
+            require(_quantities[i] > 0, "Package qty not valid");
+
             totalPrice += packages[_indices[i]].price * _quantities[i];
         }
 
