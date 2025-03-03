@@ -3,14 +3,13 @@
 // CHECKED: Withdrawal functions should also move other tokens
 // CHECKED: Add bools to disable token payments
 // CHECKED: Mock ERC20 tests
-// TODO: Verify USDC conversion
+// CHECKED: Verify USDC conversion
 
 // TESTS
-// TODO: Test get/set of token addresses
+// CHECKED: Test get/set of token address
 // CHECKED: Test get/set feedIds
-// CHECKED: Test get/set xpRate
 // CHECKED: Test lock of functions
-// TODO: Test purchasePackage and reverts
-// PENDING: Test purchasePackageWithUSDC and reverts <- Allowance needed
-// PENDING: Test purchasePackageWithXP and reverts <- Allowance needed
-// TODO: Test withdrawal functions
+// CHECKED: Test purchasePackage and reverts
+// CHECKED: Test purchasePackageWithUSDC and reverts <- Allowance needed
+// CHECKED: Test withdrawal functions USDC
+// TODO: Test withdrawal functions crypto

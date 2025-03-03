@@ -13,8 +13,13 @@
   "description": "",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "@openzeppelin/contracts": "^5.1.0",
-    "hardhat": "^2.22.15",
+    "@openzeppelin/contracts": "^5.2.0",
+    "hardhat": "^2.22.18",
     "hardhat-deploy": "^0.14.0"
+  },
+  "dependencies": {
+    "@pythnetwork/hermes-client": "^1.3.0",
+    "@pythnetwork/pyth-evm-js": "^1.82.0",
+    "@pythnetwork/pyth-sdk-solidity": "^4.0.0"
   }
 }

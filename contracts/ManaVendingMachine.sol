@@ -22,36 +22,17 @@ contract ManaVendingMachine is Ownable {
     IERC20 public usdcToken;
 
     /**
-     * @notice The XPToken contract address.
-     * @notice Must be set during deployment.
-     */
-    IERC20 public xpToken;
-
-    /**
-     * @notice XP rate vlaue
-     * @notice This is used to convert the equivalence between XP and USDC.
-     */
-    uint256 xpRate = 100;
-
-    /**
      * @notice Enables payments with Tokens
      * @notice This is used to lock payments with specific tokens.
      */
     bool cryptoEnabled = true;
     bool usdcTokenEnabled = true;
-    bool xpTokenEnabled = true;
 
     /**
      * @notice Vault address.
      * @notice This address will receive all the funds after withdrawal.
      */
     address payable public vaultAddress;
-
-    /**
-     * @notice Contract balance.
-     * @notice This contract will hold funds after mana purchase until withdrawal.
-     */
-    uint256 public contractBalance;
 
     /**
      * @notice Package struct.
@@ -102,21 +83,13 @@ contract ManaVendingMachine is Ownable {
      * @dev Constructor function.
      * @param _pyth The address of the Pyth contract
      * @param _usdcToken The address of the USDC contract
-     * @param _xpToken The address of the XP contract
      */
-    constructor(
-        address _pyth,
-        address _usdcToken,
-        address _xpToken
-    ) Ownable(msg.sender) {
+    constructor(address _pyth, address _usdcToken) Ownable(msg.sender) {
         // Set the Pyth contract address
         pyth = IPyth(_pyth);
 
         // Set the USDC contract address
         usdcToken = IERC20(_usdcToken);
-
-        // Set the XP Token contract address
-        xpToken = IERC20(_xpToken);
 
         // Set the owner and vaultAddress as the contract creator
         vaultAddress = payable(msg.sender);
@@ -162,21 +135,6 @@ contract ManaVendingMachine is Ownable {
      */
     function setUSDCAddress(IERC20 _USDCAddress) external onlyOwner {
         usdcToken = _USDCAddress;
-    }
-
-    /**
-     * @dev Get the XP contract address.
-     */
-    function getXPAddress() public view returns (IERC20) {
-        return xpToken;
-    }
-
-    /**
-     * @dev Set the XP contract address.
-     * @param _xpAddress address The address of the XP contract.
-     */
-    function setXPAddress(IERC20 _xpAddress) external onlyOwner {
-        xpToken = _xpAddress;
     }
 
     /**
@@ -252,23 +210,6 @@ contract ManaVendingMachine is Ownable {
     }
 
     /**
-     * @dev Get the XP Rate.
-     * @return uint256 The XP Rate for conversion.
-     */
-    function getXPRate() public view returns (uint256) {
-        return xpRate;
-    }
-
-    /**
-     * @dev Set the feed IDs list.
-     * @param _xpRate uint256 The new XP Rate value.
-     */
-    function setXPRate(uint256 _xpRate) external onlyOwner {
-        require(_xpRate > 0, "XP rate must be greater than zero");
-        xpRate = _xpRate;
-    }
-
-    /**
      * @dev Get the feed IDs list.
      * @return FeedID[] The list of feed IDs.
      */
@@ -305,14 +246,6 @@ contract ManaVendingMachine is Ownable {
      */
     function lockUSDCToken(bool _locked) public onlyOwner {
         usdcTokenEnabled = _locked;
-    }
-
-    /**
-     * @dev Lock XP payments.
-     * @param _locked bool The lock value.
-     */
-    function lockXPToken(bool _locked) public onlyOwner {
-        xpTokenEnabled = _locked;
     }
 
     /**
@@ -355,7 +288,7 @@ contract ManaVendingMachine is Ownable {
         // Require enabled payments
         require(cryptoEnabled, "Crypto payments are not enabled!");
 
-        // Calculate packages total
+        // Calculate packages total in USDC
         uint256 totalPrice = packages[_index].price * _quantity;
 
         // Fetch price
@@ -364,20 +297,27 @@ contract ManaVendingMachine is Ownable {
         int32 priceExpo = price.expo;
         require(priceValue > 0, "Oracle price must be greater than zero");
 
-        // Transform to Wei using exponent
-        uint256 convertedPrice = uint256(priceValue * (10 ** 18)) /
-            (10 ** uint32(-1 * priceExpo));
+        // Transform to e18 using exponent
+        uint256 convertedPrice = 0;
+        if (priceExpo < 0) {
+            convertedPrice =
+                uint256(priceValue * (10 ** 18)) /
+                (10 ** uint32(-1 * priceExpo));
+        } else {
+            convertedPrice =
+                uint256(priceValue * (10 ** 18)) *
+                (10 ** uint32(priceExpo));
+        }
         require(convertedPrice > 0, "Invalid price feed value returned");
 
-        // Make conversion to USDC
-        uint256 requiredCrypto = (totalPrice * 10 ** 18) /
+        // Make conversion equivalent to USDC in crypto
+        uint256 requiredCrypto = (totalPrice * (10 ** 18)) /
             uint256(convertedPrice);
 
         // Here goes rate eps
         require(msg.value >= requiredCrypto, "Insufficient crypto sent");
 
         // Finish purchase and emit event
-        contractBalance += requiredCrypto;
         emit PurchaseEvent(msg.sender, _index, _quantity);
     }
 
@@ -389,7 +329,7 @@ contract ManaVendingMachine is Ownable {
     function purchasePackageWithUSDC(
         uint256 _index,
         uint256 _quantity
-    ) public payable {
+    ) external {
         // Require enabled payments
         require(usdcTokenEnabled, "USDC payments are not enabled!");
 
@@ -419,50 +359,14 @@ contract ManaVendingMachine is Ownable {
     }
 
     /**
-     * @dev Allows users to purchase packages using XP.
-     * @param _index uint256 The index of the package to purchase.
-     * @param _quantity uint256 The quantity of the packages to purchase.
-     */
-    function purchasePackageWithXP(
-        uint256 _index,
-        uint256 _quantity
-    ) public payable {
-        // Require enabled payments
-        require(xpTokenEnabled, "XP payments are not enabled!");
-
-        // Calculate packages total
-        uint256 totalPrice = packages[_index].price * _quantity;
-        uint256 requiredToken = totalPrice * xpRate;
-
-        // Validate enough tokens in account
-        require(
-            xpToken.balanceOf(msg.sender) >= requiredToken,
-            "Not enough XP in account"
-        );
-
-        // Validate allowance to pay with USDC
-        require(
-            xpToken.allowance(msg.sender, address(this)) >= requiredToken,
-            "Not enough allowance"
-        );
-
-        // Require transfer from USDC to this contract
-        require(
-            xpToken.transferFrom(msg.sender, address(this), requiredToken),
-            "XP payment failed"
-        );
-
-        // Purchase with USDC increases Crypto
-        emit PurchaseEvent(msg.sender, _index, _quantity);
-    }
-
-    /**
      * @dev Withdraw native funds to the vault using call.
      * @param _amount uint256 The amount to withdraw.
      */
     function withdraw(uint256 _amount) external onlyOwner {
-        require(_amount <= contractBalance, "Insufficient contract balance");
-        contractBalance -= _amount;
+        require(
+            _amount <= address(this).balance,
+            "Insufficient contract balance"
+        );
 
         (bool success, ) = vaultAddress.call{value: _amount}("");
         require(success, "Withdraw was not successful");
@@ -476,26 +380,11 @@ contract ManaVendingMachine is Ownable {
         uint256 usdcBalance = usdcToken.balanceOf(address(this));
         require(_amount <= usdcBalance, "Insufficient contract balance");
 
+        // Add allowance
+        usdcToken.approve(address(this), _amount);
+
         // Transfer token to vault address
         bool success = usdcToken.transferFrom(
-            address(this),
-            vaultAddress,
-            _amount
-        );
-
-        require(success, "Withdraw was not successful");
-    }
-
-    /**
-     * @dev Withdraw funds to the vault using transferFrom.
-     * @param _amount uint256 The amount to withdraw.
-     */
-    function withdrawXPToken(uint256 _amount) external onlyOwner {
-        uint256 xpBalance = xpToken.balanceOf(address(this));
-        require(_amount <= xpBalance, "Insufficient contract balance");
-
-        // Transfer token to vault address
-        bool success = xpToken.transferFrom(
             address(this),
             vaultAddress,
             _amount
@@ -508,8 +397,7 @@ contract ManaVendingMachine is Ownable {
      * @dev Withdraw all the native funds to the vaultAdress using call.
      */
     function withdrawAll() external onlyOwner {
-        uint256 _amount = contractBalance;
-        contractBalance = 0;
+        uint256 _amount = address(this).balance;
 
         (bool success, ) = vaultAddress.call{value: _amount}("");
         require(success, "Withdraw all was not successful");
@@ -521,24 +409,11 @@ contract ManaVendingMachine is Ownable {
     function withdrawAllUSDC() external onlyOwner {
         uint256 _amount = usdcToken.balanceOf(address(this));
 
+        // Add allowance
+        usdcToken.approve(address(this), _amount);
+
         // Transfer token to vault address
         bool success = usdcToken.transferFrom(
-            address(this),
-            vaultAddress,
-            _amount
-        );
-
-        require(success, "Withdraw all was not successful");
-    }
-
-    /**
-     * @dev Withdraw all the XP funds to the vaultAdress using call.
-     */
-    function withdrawAllXP() external onlyOwner {
-        uint256 _amount = xpToken.balanceOf(address(this));
-
-        // Transfer token to vault address
-        bool success = xpToken.transferFrom(
             address(this),
             vaultAddress,
             _amount

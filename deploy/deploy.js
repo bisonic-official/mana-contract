@@ -8,7 +8,10 @@ const func = async function (hre) {
     try {
         await deploy('ManaVendingMachine', {
             from: deployer,
-            args: ["0xEbe57e8045F2F230872523bbff7374986E45C486"],
+            args: [
+                "0xEbe57e8045F2F230872523bbff7374986E45C486",
+                "0x0b7007c13325c48911f73a2dad5fa5dcbf808adc"
+            ],
             log: true,
             gasPrice: 30000000000
         });

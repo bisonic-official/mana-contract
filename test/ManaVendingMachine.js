@@ -15,6 +15,7 @@ describe("📝 Mana Contract", function () {
 
     //  Set Pyth address
     const PythAddress = "0xEbe57e8045F2F230872523bbff7374986E45C486"; // Saigon
+    // const PythAddress = "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729"; // Sepolia
     const connection = new HermesClient("https://hermes.pyth.network", {});
 
     // You can find the ids of prices at https://pyth.network/developers/price-feed-ids#pyth-evm-stable
@@ -37,18 +38,19 @@ describe("📝 Mana Contract", function () {
         tokenAddress = await tokenContract.getAddress();
 
         // Mint tokens
-        await tokenContract.mint(owner, 1000);
+        await tokenContract.mint(owner, 100000);
 
         // Deploy main contract
         contract = await ManaVendingMachine.deploy(
             PythAddress,
-            tokenAddress,
             tokenAddress
         );
         await contract.waitForDeployment();
 
         //  Deploy ERC20Mock
-        initialBalance = await contract.contractBalance();
+        initialBalance = await ethers.provider.getBalance(
+            await contract.getAddress()
+        );
     });
 
     // Runs tests that not include consulting the oracle 
@@ -62,6 +64,15 @@ describe("📝 Mana Contract", function () {
             const pkgs = await contract.getPackages();
             const n_elements = Object.keys(pkgs).length;
             expect(pkgQty).to.equal(n_elements);
+        });
+
+        it("🔥 Should verify getter and setter of token address", async function () {
+            // Verify initial address (getter)
+            expect(await contract.getUSDCAddress()).to.equal(tokenAddress);
+
+            // Set new address (setter)
+            await contract.setUSDCAddress(owner.address);
+            expect(await contract.getUSDCAddress()).to.equal(owner.address);
         });
 
         it("🔥 Should verify getter of packages", async function () {
@@ -128,15 +139,6 @@ describe("📝 Mana Contract", function () {
             ).to.be.revertedWith("Packages Ids and prices arrays must have the same length as pkgQty");
         });
 
-        it("🔥 Should verify getter and setter of XP Rate", async function () {
-            // Verify getter
-            expect(await contract.getXPRate()).to.equal(100);
-
-            // Verify setter
-            await contract.setXPRate(50);
-            expect(await contract.getXPRate()).to.equal(50);
-        });
-
         it("🔥 Should verify getter and setter of feed ids", async function () {
             // Verify getter
             const feedIDs = await contract.getFeedIDs();
@@ -194,43 +196,29 @@ describe("📝 Mana Contract", function () {
             const pkgIndex = 0;
             const pkgQty = 1;
 
-            // TODO
-            console.log("TEST IS PENDING!");
+            // IMPOTANT! THIS IS NEEDED!
+            // Add allowance
+            const vendingMachineAddress = await contract.getAddress();
+            await tokenContract.approve(vendingMachineAddress, 10);
 
-            // // Purchase with USDC
-            // let tx = await contract.purchasePackageWithUSDC(
-            //     pkgIndex, // Package with index 0
-            //     pkgQty, // Qty of packages 
-            //     {
-            //         value: ethers.parseEther("0.00000000000000001"),
-            //         gasLimit: 1000000,
-            //     }
-            // );
+            // Purchase with USDC
+            const priorBalance = await tokenContract.balanceOf(owner);
+            const tx = await contract.purchasePackageWithUSDC(
+                pkgIndex, // Package with index 0
+                pkgQty // Qty of packages
+            );
+            const postBalance = await tokenContract.balanceOf(owner);
             
-            // // Wait for txn
-            // let receipt = await tx.wait();
+            // Wait for txn
+            const receipt = await tx.wait();
 
-            // // Validate results and updates
-            // expect(receipt.status).to.be.equal(1);
-            // expect(await tokenContract.balanceOf(owner)).to.be.equal(1);
-
-
-            // // Purchase with XP
-            // tx = await contract.purchasePackageWithXP(
-            //     pkgIndex, // Package with index 0
-            //     pkgQty, // Qty of packages 
-            //     {
-            //         value: ethers.parseEther("0.000000000000001"),
-            //         gasLimit: 1000000,
-            //     }
-            // );
-            
-            // // Wait for txn
-            // receipt = await tx.wait();
-
-            // // Validate results and updates
-            // expect(receipt.status).to.be.equal(1);
-            // expect(await tokenContract.balanceOf(owner)).to.be.equal(1);
+            // Validate results and updates
+            expect(receipt.status).to.be.equal(1);
+            expect(priorBalance - postBalance).to.be.equal(10);
+            const contractUSDCBalance = await tokenContract.balanceOf(
+                await contract.getAddress()
+            );
+            expect(contractUSDCBalance).to.be.equal(10);
         });
 
         it("🔥 Should fail purchase with insufficient Tokens", async function () {
@@ -256,29 +244,14 @@ describe("📝 Mana Contract", function () {
             // Purchase with USDC
             await expect(contract.purchasePackageWithUSDC(
                 pkgIndex, // Package with index 0
-                pkgQty, // Qty of packages 
-                {
-                    value: ethers.parseEther("0.000000000000000001"),
-                    gasLimit: 1000000,
-                }
+                pkgQty // Qty of packages
             )).to.be.revertedWith("Not enough USDC in account");
-
-            // Purchase with XP
-            await expect(contract.purchasePackageWithXP(
-                pkgIndex, // Package with index 0
-                pkgQty, // Qty of packages 
-                {
-                    value: ethers.parseEther("0.0000000000000001"),
-                    gasLimit: 1000000,
-                }
-            )).to.be.revertedWith("Not enough XP in account");
         });
 
         it("🔥 Should not allow to purchase when locked", async function () {
             // Locj purchasing functions
             await contract.lockCrypto(false);
             await contract.lockUSDCToken(false);
-            await contract.lockXPToken(false);
 
             // Try to purchase
             const pkgIndex = 0;
@@ -298,22 +271,89 @@ describe("📝 Mana Contract", function () {
             // Purchase with USDC
             await expect(contract.purchasePackageWithUSDC(
                 pkgIndex, // Package with index 0
-                pkgQty, // Qty of packages 
-                {
-                    value: ethers.parseEther("0.000000000000000001"),
-                    gasLimit: 1000000,
-                }
+                pkgQty // Qty of packages
             )).to.be.revertedWith("USDC payments are not enabled!");
+        });
 
-            // Purchase with XP
-            await expect(contract.purchasePackageWithXP(
+        it("🔥 Should verify withdrawals for Token txns", async function () {
+            // Set packages
+            const pkgSize = 50;
+            const packageIds = Array(pkgSize).fill('0x0');
+            const packagePrices = Array(pkgSize).fill(0);
+        
+            packageIds[0] = 'Package 1';
+            packageIds[1] = 'Package 2';
+            packageIds[2] = 'Package 3';
+        
+            packagePrices[0] = 10;
+            packagePrices[1] = 20;
+            packagePrices[2] = 30;
+        
+            await contract.setPackages(packageIds, packagePrices);
+
+            // Try to purchase
+            const pkgIndex = 0;
+            const pkgQty = 1;
+
+            // IMPOTANT! THIS IS NEEDED!
+            // Add allowance
+            const vendingMachineAddress = await contract.getAddress();
+            await tokenContract.approve(vendingMachineAddress, 10);
+
+            // Purchase with USDC
+            const tx = await contract.purchasePackageWithUSDC(
                 pkgIndex, // Package with index 0
-                pkgQty, // Qty of packages 
-                {
-                    value: ethers.parseEther("0.0000000000000001"),
-                    gasLimit: 1000000,
-                }
-            )).to.be.revertedWith("XP payments are not enabled!");
+                pkgQty // Qty of packages
+            );
+            
+            // Wait for txn
+            const receipt = await tx.wait();
+
+            // Validate results and updates
+            expect(receipt.status).to.be.equal(1);
+
+
+            // Set vault address
+            const vaultAddress = "0xa0Ff5b048E0e53f1204F0537F1cEC8f49dC9D515";
+            await contract.setVaultAddress(vaultAddress);
+            
+            
+            // WITHDRAW AN AMOUNT
+            // Get balances before withdrawal
+            const beforeAddress = await tokenContract.balanceOf(vaultAddress);
+            const beforeWithdraw = await tokenContract.balanceOf(
+                await contract.getAddress()
+            );
+
+            // Withdraw 1 unit
+            await contract.withdrawUSDCToken(1);
+            const afterWithdraw = await tokenContract.balanceOf(
+                await contract.getAddress()
+            );
+            expect(beforeWithdraw - afterWithdraw).to.equal(1);
+            
+            // Verify amounts
+            const afterAddress = await tokenContract.balanceOf(vaultAddress);
+            expect(afterAddress - beforeAddress).to.equal(1);
+
+
+            // WITHDRAW AN ALL TOKEN FUNDS
+            // Get balances before withdrawal
+            const beforeAddressAll = await tokenContract.balanceOf(vaultAddress);
+            const beforeWithdrawAll = await tokenContract.balanceOf(
+                await contract.getAddress()
+            );
+
+            // Withdraw all
+            await contract.withdrawAllUSDC();
+            const afterWithdrawAll = await tokenContract.balanceOf(
+                await contract.getAddress()
+            );
+            expect(afterWithdrawAll).to.equal(0);
+            
+            // Verify amounts
+            const afterAddressAll = await tokenContract.balanceOf(vaultAddress);
+            expect(afterAddressAll - beforeAddressAll).to.equal(beforeWithdrawAll);
         });
     }
 
@@ -335,9 +375,9 @@ describe("📝 Mana Contract", function () {
             packageIds[1] = 'Package 2';
             packageIds[2] = 'Package 3';
         
-            packagePrices[0] = 1000;
-            packagePrices[1] = 2000;
-            packagePrices[2] = 3000;
+            packagePrices[0] = 1 * 10 ** 12;
+            packagePrices[1] = 2 * 10 ** 12;
+            packagePrices[2] = 3 * 10 ** 12;
         
             await contract.setPackages(packageIds, packagePrices);
         
@@ -352,161 +392,150 @@ describe("📝 Mana Contract", function () {
                 feedIndex, // Feed id 2 -> RON
                 [formattedHex], 
                 {
-                    value: ethers.parseEther("0.0001"),
+                    value: 3 * 10 ** 12,
                     gasLimit: 1000000,
                 }
             );
+            // Print testing address to validate income
+            // console.log(await contract.getAddress());
             
             // Wait for txn
             const receipt = await tx.wait();
 
             // Validate results and updates
             expect(receipt.status).to.be.equal(1);
-            const newBalance = await contract.contractBalance();
+            const newBalance = await ethers.provider.getBalance(
+                await contract.getAddress()
+            );
             expect(newBalance).to.be.gt(initialBalance);
+            // console.log("Initial balance:", initialBalance);
+            // console.log("New balance after purchase:", newBalance);
         });
 
-        // it("🔥 Should fail purchase with insufficient crypto sent", async function () {
-        //     // Hermes client
-        //     const priceUpdates = await connection.getLatestPriceUpdates(priceIds);
+        it("🔥 Should fail purchase with insufficient crypto sent", async function () {
+            // Hermes client
+            const priceUpdates = await connection.getLatestPriceUpdates(priceIds);
+        
+            const updateData = priceUpdates['binary']['data'][0];
+            const formattedHex = updateData.startsWith("0x") ? updateData : "0x" + updateData;
+        
+            // Set packages
+            const pkgSize = 50;
+            const packageIds = Array(pkgSize).fill('0x0');
+            const packagePrices = Array(pkgSize).fill(0);
+        
+            packageIds[0] = 'Package 1';
+            packageIds[1] = 'Package 2';
+            packageIds[2] = 'Package 3';
+        
+            packagePrices[0] = 1 * 10 ** 12;
+            packagePrices[1] = 2 * 10 ** 12;
+            packagePrices[2] = 3 * 10 ** 12;
+        
+            await contract.setPackages(packageIds, packagePrices);
             
-        //     const updateData = priceUpdates['binary']['data'][0];
-        //     const formattedHex = updateData.startsWith("0x") ? updateData : "0x" + updateData;
             
-        //     // Set packages
-        //     const pkgSize = 50;
-        //     const packageIds = Array(pkgSize).fill('0x0');
-        //     const packagePrices = Array(pkgSize).fill(0);
+            // Call function that interacts with Orcale
+            const pkgIndex = 0;
+            const pkgQty = 100;
+            const feedIndex = 2; // Ronin
+            expect(await contract.purchasePackage(
+                pkgIndex, // Package with index 0
+                pkgQty, // Qty of packages 
+                feedIndex, // Feed id 2 -> RON
+                [formattedHex], 
+                {
+                    value: 3 * 10 ** 12,
+                    gasLimit: 1000000,
+                }
+            )).to.be.revertedWith("Insufficient crypto sent");
+        });
+
+        it("🔥 Should verify withdrawals for crypto txns", async function () {
+            // Hermes client
+            const priceUpdates = await connection.getLatestPriceUpdates(priceIds);
+        
+            const updateData = priceUpdates['binary']['data'][0];
+            const formattedHex = updateData.startsWith("0x") ? updateData : "0x" + updateData;
+        
+            // Set packages
+            const pkgSize = 50;
+            const packageIds = Array(pkgSize).fill('0x0');
+            const packagePrices = Array(pkgSize).fill(0);
+        
+            packageIds[0] = 'Package 1';
+            packageIds[1] = 'Package 2';
+            packageIds[2] = 'Package 3';
+        
+            packagePrices[0] = 1 * 10 ** 12;
+            packagePrices[1] = 2 * 10 ** 12;
+            packagePrices[2] = 3 * 10 ** 12;
+        
+            await contract.setPackages(packageIds, packagePrices);
+
+            // Call function that interacts with Orcale
+            const pkgIndex = 0;
+            const pkgQty = 2;
+            const feedIndex = 2; // Ronin
+            const tx = await contract.purchasePackage(
+                pkgIndex, // Package with index 0
+                pkgQty, // Qty of packages 
+                feedIndex, // Feed id 2 -> RON
+                [formattedHex], 
+                {
+                    value: 3 * 10 ** 12,
+                    gasLimit: 1000000,
+                }
+            );
+            // Print testing address to validate income
+            // console.log(await contract.getAddress());
             
-        //     packageIds[0] = 'Package 1';
-        //     packageIds[1] = 'Package 2';
-        //     packageIds[2] = 'Package 3';
+            // Wait for txn and validate status
+            const receipt = await tx.wait();
+            expect(receipt.status).to.be.equal(1);
+
+
+            // Set vault address
+            const vaultAddress = "0x0d72fD549214Eb53cC241f400B147364e926E15B";
+            await contract.setVaultAddress(vaultAddress);
+
+
+            // WITHDRAW AN AMOUNT
+            // Get balances before withdrawal
+            const beforeAddress = await ethers.provider.getBalance(vaultAddress);
+            const beforeWithdraw = await ethers.provider.getBalance(
+                await contract.getAddress()
+            );
+
+            // Withdraw 1 unit
+            await contract.withdraw(1);
+            const afterWithdraw = await ethers.provider.getBalance(
+                await contract.getAddress()
+            );
+            expect(beforeWithdraw - afterWithdraw).to.equal(1);
             
-        //     packagePrices[0] = 1;
-        //     packagePrices[1] = 2;
-        //     packagePrices[2] = 3;
+            // Verify amounts
+            const afterAddress = await ethers.provider.getBalance(vaultAddress);
+            expect(afterAddress - beforeAddress).to.equal(1);
+
+
+            // WITHDRAW AN ALL TOKEN FUNDS
+            // Get balances before withdrawal
+            const beforeAddressAll = await ethers.provider.getBalance(vaultAddress);
+            const beforeWithdrawAll = await ethers.provider.getBalance(
+                await contract.getAddress()
+            );
+
+            // Withdraw all
+            await contract.withdrawAll();
+            const afterWithdrawAll = await ethers.provider.getBalance(
+                await contract.getAddress()
+            );
+            expect(afterWithdrawAll).to.equal(0);
             
-        //     await contract.setPackages(packageIds, packagePrices);
-            
-            
-        //     // Call function thta interacts with Orcale
-        //     const pkgIndex = 2;
-        //     const pkgQty = 100;
-        //     const feedIndex = 2; // Ronin
-        //     console.log(ethers.parseEther("0.000000000000000001"));
-        //     // await expect(
-        //         await contract.purchaseWithCrypto(
-        //             pkgIndex, // Package with index 0
-        //             pkgQty, // Qty of packages 
-        //             feedIndex, // Feed id 2 -> RON
-        //             [formattedHex], 
-        //             {
-        //                 value: ethers.parseEther("0.000000000000000001"),
-        //                 gasLimit: 1000000,
-        //             }
-        //         )
-        //     // ).to.be.revertedWith("Insufficient crypto sent");
-        // });
-
-        // it("🔥 Should verify withdrawal of an amount", async function () {
-        //     // Define vault address
-        //     const vault = '0x0d72fD549214Eb53cC241f400B147364e926E15B';
-        //     const buyer = owner;
-
-        //     // Set packages
-        //     const pkgSize = 50;
-        //     const packageIds = Array(pkgSize).fill('0x0');
-        //     const packagePrices = Array(pkgSize).fill(0);
-
-        //     packageIds[0] = 'Package 1';
-        //     packageIds[1] = 'Package 2';
-        //     packageIds[2] = 'Package 3';
-
-        //     packagePrices[0] = 1;
-        //     packagePrices[1] = 2;
-        //     packagePrices[2] = 3;
-
-        //     await contract.setPackages(packageIds, packagePrices);
-
-        //     // Set vault address
-        //     await contract.connect(owner).setVaultAddress(vault);
-        //     expect(await contract.vaultAddress()).to.equal(vault);
-
-        //     // Buy packages and add funds to contract
-        //     const packageList = Array(3).fill(0);
-        //     const packageQty = Array(3).fill(0);
-        //     packageList[0] = 0;
-        //     packageList[1] = 1;
-        //     packageList[2] = 2;
-        //     packageQty[0] = 3;
-        //     packageQty[1] = 2;
-        //     packageQty[2] = 1;
-
-        //     await contract.connect(buyer).purchasePackages(
-        //         packageList, packageQty,
-        //         { value: 10, from: buyer.address }
-        //     );
-
-        //     // Get balances before withdrawal
-        //     const beforeWithdraw = await contract.contractBalance();
-        //     const beforeWithdrawVault = await ethers.provider.getBalance(vault);
-        //     expect(beforeWithdraw).to.equal(10);
-
-        //     // Withdraw 10 units
-        //     await contract.connect(owner).withdraw(5);
-        //     expect(await contract.contractBalance()).to.equal(5);
-
-        //     // Verify amounts
-        //     const afterWithdrawVault = await ethers.provider.getBalance(vault);
-        //     expect(afterWithdrawVault).to.equal(beforeWithdrawVault + 5n);
-        // });
-
-        // it("🔥 Should verify withdrawal of all funds", async function () {
-        //     // Define vault address
-        //     const vault = '0x0d72fD549214Eb53cC241f400B147364e926E15B';
-        //     const buyer = owner;
-
-        //     // Set packages
-        //     const pkgSize = 50;
-        //     const packageIds = Array(pkgSize).fill('0x0');
-        //     const packagePrices = Array(pkgSize).fill(0);
-
-        //     packageIds[0] = 'Package 1';
-        //     packageIds[1] = 'Package 2';
-        //     packageIds[2] = 'Package 3';
-
-        //     packagePrices[0] = 1;
-        //     packagePrices[1] = 2;
-        //     packagePrices[2] = 3;
-
-        //     await contract.setPackages(packageIds, packagePrices);
-
-        //     // Set vault address
-        //     await contract.connect(owner).setVaultAddress(vault);
-        //     expect(await contract.vaultAddress()).to.equal(vault);
-
-        //     // Buy packages and add funds to contract
-        //     const packageList = Array(3).fill(0);
-        //     const packageQty = Array(3).fill(0);
-        //     packageList[0] = 0;
-        //     packageList[1] = 1;
-        //     packageList[2] = 2;
-        //     packageQty[0] = 3;
-        //     packageQty[1] = 2;
-        //     packageQty[2] = 1;
-
-        //     await contract.connect(buyer).purchasePackages(
-        //         packageList, packageQty,
-        //         { value: 10, from: buyer.address }
-        //     );
-
-        //     const beforeWithdraw = await contract.contractBalance();
-        //     const beforeWithdrawVault = await ethers.provider.getBalance(vault);
-        //     expect(beforeWithdraw).to.equal(10);
-        //     await contract.withdrawAll();
-        //     expect(await contract.contractBalance()).to.equal(0);
-        //     const afterWithdrawVault = await ethers.provider.getBalance(vault);
-        //     expect(afterWithdrawVault).to.equal(beforeWithdrawVault + 10n);
-        // });
+            // Verify amounts
+            const afterAddressAll = await ethers.provider.getBalance(vaultAddress);
+            expect(afterAddressAll - beforeAddressAll).to.equal(beforeWithdrawAll);
+        });
     }
 });
