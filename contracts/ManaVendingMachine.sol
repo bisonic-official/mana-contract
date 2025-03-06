@@ -76,8 +76,28 @@ contract ManaVendingMachine is Ownable {
      * @param buyer address The address of the buyer.
      * @param package uint256 The index of the purchased packages.
      * @param quantity uint256 The quantity of the purchased packages.
+     * @param amountSpent uint256 The amount spent in the purchased packages.
      */
-    event PurchaseEvent(address buyer, uint256 package, uint256 quantity);
+    event PurchaseEvent(
+        address buyer,
+        uint256 package,
+        uint256 quantity,
+        uint256 amountSpent
+    );
+
+    /**
+     * @dev Event to be emited on purchase with USDC.
+     * @param buyer address The address of the buyer.
+     * @param package uint256 The index of the purchased packages.
+     * @param quantity uint256 The quantity of the purchased packages.
+     * @param amountSpent uint256 The amount spent in the purchased packages.
+     */
+    event PurchaseEventUSDC(
+        address buyer,
+        uint256 package,
+        uint256 quantity,
+        uint256 amountSpent
+    );
 
     /**
      * @dev Constructor function.
@@ -318,7 +338,7 @@ contract ManaVendingMachine is Ownable {
         require(msg.value >= requiredCrypto, "Insufficient crypto sent");
 
         // Finish purchase and emit event
-        emit PurchaseEvent(msg.sender, _index, _quantity);
+        emit PurchaseEvent(msg.sender, _index, _quantity, msg.value);
     }
 
     /**
@@ -355,7 +375,7 @@ contract ManaVendingMachine is Ownable {
         );
 
         // Purchase with USDC increases Crypto
-        emit PurchaseEvent(msg.sender, _index, _quantity);
+        emit PurchaseEventUSDC(msg.sender, _index, _quantity, totalPrice);
     }
 
     /**

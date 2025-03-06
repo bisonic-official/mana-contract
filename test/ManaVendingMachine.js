@@ -446,7 +446,8 @@ describe("📝 Mana Contract", function () {
                 [formattedHex], 
                 {
                     value: 3 * 10 ** 12,
-                    gasLimit: 1000000,
+                    gasLimit: 10000000,
+                    gasPrice: 30000000000
                 }
             )).to.be.revertedWith("Insufficient crypto sent");
         });
@@ -484,7 +485,8 @@ describe("📝 Mana Contract", function () {
                 [formattedHex], 
                 {
                     value: 3 * 10 ** 12,
-                    gasLimit: 1000000,
+                    gasLimit: 10000000,
+                    gasPrice: 30000000000
                 }
             );
             // Print testing address to validate income
@@ -508,15 +510,15 @@ describe("📝 Mana Contract", function () {
             );
 
             // Withdraw 1 unit
-            await contract.withdraw(1);
+            await contract.withdraw(100);
             const afterWithdraw = await ethers.provider.getBalance(
                 await contract.getAddress()
             );
-            expect(beforeWithdraw - afterWithdraw).to.equal(1);
+            expect(beforeWithdraw - afterWithdraw).to.equal(100);
             
             // Verify amounts
             const afterAddress = await ethers.provider.getBalance(vaultAddress);
-            expect(afterAddress - beforeAddress).to.equal(1);
+            expect(afterAddress - beforeAddress).to.equal(100);
 
 
             // WITHDRAW AN ALL TOKEN FUNDS

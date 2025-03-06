@@ -12,4 +12,4 @@
 // CHECKED: Test purchasePackage and reverts
 // CHECKED: Test purchasePackageWithUSDC and reverts <- Allowance needed
 // CHECKED: Test withdrawal functions USDC
-// TODO: Test withdrawal functions crypto
+// CHECKED: Test withdrawal functions crypto
