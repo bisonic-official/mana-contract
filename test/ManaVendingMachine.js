@@ -5,8 +5,8 @@ const { HermesClient } = require('@pythnetwork/hermes-client');
 
 describe("📝 Mana Contract", function () {
     // Set to true to only run Pyth Oracle tests
-    const only_oracle = false;
-    const run_oracle = false;
+    const only_oracle = true;
+    const run_oracle = true;
 
     //  Set global variables
     let ManaVendingMachine, contract, owner;

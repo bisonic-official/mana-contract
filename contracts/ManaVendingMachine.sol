@@ -7,8 +7,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract ManaVendingMachine is Ownable {
+contract ManaVendingMachine is Ownable, ReentrancyGuard {
     /**
      * @notice Pyth contract address.
      * @notice Must be set during deployment.
@@ -308,6 +309,12 @@ contract ManaVendingMachine is Ownable {
         // Require enabled payments
         require(cryptoEnabled, "Crypto payments are not enabled!");
 
+        // Require a valid index
+        require(_index < packages.length, "Invalid package index");
+
+        // Require a valid quantity
+        require(_quantity > 0, "Quantity must be greater than zero");
+
         // Calculate packages total in USDC
         uint256 totalPrice = packages[_index].price * _quantity;
 
@@ -353,6 +360,12 @@ contract ManaVendingMachine is Ownable {
         // Require enabled payments
         require(usdcTokenEnabled, "USDC payments are not enabled!");
 
+        // Require a valid index
+        require(_index < packages.length, "Invalid package index");
+
+        // Require a valid quantity
+        require(_quantity > 0, "Quantity must be greater than zero");
+
         // Calculate packages total
         uint256 totalPrice = packages[_index].price * _quantity;
 
@@ -382,7 +395,7 @@ contract ManaVendingMachine is Ownable {
      * @dev Withdraw native funds to the vault using call.
      * @param _amount uint256 The amount to withdraw.
      */
-    function withdraw(uint256 _amount) external onlyOwner {
+    function withdraw(uint256 _amount) external nonReentrant onlyOwner {
         require(
             _amount <= address(this).balance,
             "Insufficient contract balance"
@@ -416,7 +429,7 @@ contract ManaVendingMachine is Ownable {
     /**
      * @dev Withdraw all the native funds to the vaultAdress using call.
      */
-    function withdrawAll() external onlyOwner {
+    function withdrawAll() external nonReentrant onlyOwner {
         uint256 _amount = address(this).balance;
 
         (bool success, ) = vaultAddress.call{value: _amount}("");

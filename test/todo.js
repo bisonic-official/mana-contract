@@ -4,6 +4,9 @@
 // CHECKED: Add bools to disable token payments
 // CHECKED: Mock ERC20 tests
 // CHECKED: Verify USDC conversion
+// CHECKED: Add non reentrancy to contract
+// CHECKED: Add bounds for package index
+// CHECKED: Add quantity check
 
 // TESTS
 // CHECKED: Test get/set of token address
