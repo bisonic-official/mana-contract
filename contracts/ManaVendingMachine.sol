@@ -66,11 +66,10 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Number of packages.
-     * @notice This number should be the same as the length of the packages array.
+     * @notice Internal feed ID.
+     * @notice This contains the feed ID used in this contract.
      */
-    uint8 feedQty = 3;
-    FeedID[] feedIDs;
+    FeedID feedID;
 
     /**
      * @dev Event to be emited on purchase.
@@ -120,27 +119,8 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
             packages.push(Package("0x0", MAX_INT));
         }
 
-        // Initialize feed IDs
-        // You can find the ids of prices at:
-        //  https://pyth.network/developers/price-feed-ids#pyth-evm-stable
-        feedIDs.push(
-            FeedID(
-                "USDC/USD",
-                0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a
-            )
-        );
-        feedIDs.push(
-            FeedID(
-                "ETH/USD",
-                0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
-            )
-        );
-        feedIDs.push(
-            FeedID(
-                "RON/USD",
-                0x97cfe19da9153ef7d647b011c5e355142280ddb16004378573e6494e499879f3
-            )
-        );
+        // Initialize an empty feed ID
+        feedID = FeedID("NULL", "0x0");
     }
 
     /**
@@ -156,6 +136,21 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
      */
     function setUSDCAddress(IERC20 _USDCAddress) external onlyOwner {
         usdcToken = _USDCAddress;
+    }
+
+    /**
+     * @dev Get the Pyth contract address.
+     */
+    function getPythAddress() public view returns (IPyth) {
+        return pyth;
+    }
+
+    /**
+     * @dev Set the Pyth oracle address.
+     * @param _pyth address The address of the Pyth oracle.
+     */
+    function setPythAddress(address _pyth) external onlyOwner {
+        pyth = IPyth(_pyth);
     }
 
     /**
@@ -231,26 +226,26 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Get the feed IDs list.
-     * @return FeedID[] The list of feed IDs.
+     * @dev Get the feed ID.
+     * @return FeedID The feed ID values.
      */
-    function getFeedIDs() public view returns (FeedID[] memory) {
-        return feedIDs;
+    function getFeedID() public view returns (FeedID memory) {
+        return feedID;
     }
 
     /**
      * @dev Set a new feed ID.
-     * @param index uint256 The index of the package.
      * @param _symbol string The convertion symbol.
      * @param _id bytes32 The feed ID value.
      */
     function setFeedID(
-        uint256 index,
         string calldata _symbol,
         bytes32 _id
     ) external onlyOwner {
-        require(index < feedIDs.length, "Invalid index");
-        feedIDs[index] = FeedID(_symbol, _id);
+        // You can find the IDs of prices at:
+        //  https://pyth.network/developers/price-feed-ids#pyth-evm-stable
+
+        feedID = FeedID(_symbol, _id);
     }
 
     /**
@@ -277,7 +272,6 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
      * @param updateData The encoded data to update the contract with the latest price
      */
     function fetchPrice(
-        uint256 index,
         bytes[] calldata updateData
     ) public payable returns (PythStructs.Price memory) {
         // Fetch the priceUpdate from hermes
@@ -286,7 +280,7 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
 
         // Fetch the latest price
         PythStructs.Price memory price = pyth.getPriceNoOlderThan(
-            feedIDs[index].id,
+            feedID.id,
             60
         );
         require(price.price != 0, "Price data unavailable");
@@ -297,15 +291,16 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
      * @dev Allows users to purchase packages using crypto (ETH, RON, etc.).
      * @param _index uint256 The index of the package to purchase.
      * @param _quantity uint256 The quantity of the packages to purchase.
-     * @param feedIndex uint256 The feed index to specify crypto to be used.
      * @param updateData bytes[] Update data from Pyth to obtain a recent fee.
      */
     function purchasePackage(
         uint256 _index,
         uint256 _quantity,
-        uint256 feedIndex,
         bytes[] calldata updateData
     ) public payable {
+        // Require feed ID set
+        require(feedID.id != "0x0", "Feed ID is not set");
+
         // Require enabled payments
         require(cryptoEnabled, "Crypto payments are not enabled!");
 
@@ -319,7 +314,7 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
         uint256 totalPrice = packages[_index].price * _quantity;
 
         // Fetch price
-        PythStructs.Price memory price = fetchPrice(feedIndex, updateData);
+        PythStructs.Price memory price = fetchPrice(updateData);
         uint256 priceValue = uint256(int256(price.price));
         int32 priceExpo = price.expo;
         require(priceValue > 0, "Oracle price must be greater than zero");
@@ -396,6 +391,7 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
      * @param _amount uint256 The amount to withdraw.
      */
     function withdraw(uint256 _amount) external nonReentrant onlyOwner {
+        require(_amount > 0, "Amount must be greater than 0");
         require(
             _amount <= address(this).balance,
             "Insufficient contract balance"
@@ -411,6 +407,7 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
      */
     function withdrawUSDCToken(uint256 _amount) external onlyOwner {
         uint256 usdcBalance = usdcToken.balanceOf(address(this));
+        require(_amount > 0, "Amount must be greater than 0");
         require(_amount <= usdcBalance, "Insufficient contract balance");
 
         // Add allowance
@@ -431,6 +428,7 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
      */
     function withdrawAll() external nonReentrant onlyOwner {
         uint256 _amount = address(this).balance;
+        require(_amount > 0, "Amount must be greater than 0");
 
         (bool success, ) = vaultAddress.call{value: _amount}("");
         require(success, "Withdraw all was not successful");
@@ -441,6 +439,7 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
      */
     function withdrawAllUSDC() external onlyOwner {
         uint256 _amount = usdcToken.balanceOf(address(this));
+        require(_amount > 0, "Amount must be greater than 0");
 
         // Add allowance
         usdcToken.approve(address(this), _amount);

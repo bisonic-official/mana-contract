@@ -2,10 +2,14 @@ require('@nomicfoundation/hardhat-toolbox');
 require('solidity-coverage');
 require('hardhat-deploy');
 
+// Ensure your configuration variables are set before executing the script
+const { vars } = require("hardhat/config");
+
 
 const ALCHEMY_API_KEY = "";
 const SEPOLIA_PRIVATE_KEY = "";
 const MAINNET_PRIVATE_KEY = "";
+const PRIVATE_KEY = "";
 
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -38,13 +42,17 @@ module.exports = {
     ronin: {
       chainId: 2020,
       url: 'https://api.roninchain.com/rpc',
-      gasPrice: 20_000_000_000,
-      // accounts: [PRIVATE_KEY],
+      gasPrice: 21_000_000_000,
+      accounts: [PRIVATE_KEY],
     },
     saigon: {
       chainId: 2021,
       url: 'https://saigon-testnet.roninchain.com/rpc',
-      gasPrice: 20_000_000_000,
+      gasPrice: 21_000_000_000,
+      accounts: [PRIVATE_KEY],
     }
+  },
+  etherscan: {
+    apiKey: ""
   }
 };

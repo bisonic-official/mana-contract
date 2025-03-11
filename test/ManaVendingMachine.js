@@ -4,9 +4,11 @@ const { HermesClient } = require('@pythnetwork/hermes-client');
 
 
 describe("📝 Mana Contract", function () {
+    this.timeout(60000); // Increase timeout globally in Hardhat test suite
+
     // Set to true to only run Pyth Oracle tests
-    const only_oracle = true;
-    const run_oracle = true;
+    const only_oracle = false;
+    const run_oracle = false;
 
     //  Set global variables
     let ManaVendingMachine, contract, owner;
@@ -19,11 +21,9 @@ describe("📝 Mana Contract", function () {
     const connection = new HermesClient("https://hermes.pyth.network", {});
 
     // You can find the ids of prices at https://pyth.network/developers/price-feed-ids#pyth-evm-stable
-    const priceIds = [
-        "0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a", // USDC/USD price id
-        "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace", // ETH/USD price id
-        "0x97cfe19da9153ef7d647b011c5e355142280ddb16004378573e6494e499879f3" // RON/USD price id
-    ];
+    // const priceId = ["0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a"]; // USDC/USD price id
+    // const priceId = ["0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace"]; // ETH/USD price id
+    const priceId = ["0x97cfe19da9153ef7d647b011c5e355142280ddb16004378573e6494e499879f3"]; // RON/USD price id
 
     beforeEach(async function () {
         [ owner ] = await ethers.getSigners();
@@ -139,40 +139,33 @@ describe("📝 Mana Contract", function () {
             ).to.be.revertedWith("Packages Ids and prices arrays must have the same length as pkgQty");
         });
 
-        it("🔥 Should verify getter and setter of feed ids", async function () {
+        it("🔥 Should verify getter and setter of Pyth address", async function () {
+            // Verify initial address (getter)
+            expect(await contract.getPythAddress()).to.equal(PythAddress);
+
+            // Set new address (setter)
+            const newPythAddress = "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729"; // Sepolia
+            await contract.setPythAddress(newPythAddress);
+            expect(await contract.getPythAddress()).to.equal(newPythAddress);
+        });
+
+        it("🔥 Should verify getter and setter of feed ID", async function () {
             // Verify getter
-            const feedIDs = await contract.getFeedIDs();
-            expect(feedIDs[0].symbol).to.equal("USDC/USD");
-            expect(
-                feedIDs[0].id
-            ).to.equal(
-                "0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a"
-            );
-            expect(feedIDs[1].symbol).to.equal("ETH/USD");
-            expect(
-                feedIDs[1].id
-            ).to.equal(
-                "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace"
-            );
-            expect(feedIDs[2].symbol).to.equal("RON/USD");
-            expect(
-                feedIDs[2].id
-            ).to.equal(
-                "0x97cfe19da9153ef7d647b011c5e355142280ddb16004378573e6494e499879f3"
-            );
+            const feedID = await contract.getFeedID();
+            expect(feedID.symbol).to.equal("NULL");
+            expect(feedID.id).to.equal("0x3078300000000000000000000000000000000000000000000000000000000000");
 
             // Verify setter
             await contract.setFeedID(
-                0, "TEST/USD", 
-                "0x0000000000000000000000000000000000000000000000000000000000000000"
+                "TEST/USD", 
+                "0x0000000000000000000000000000000000000000000000000000000000000001"
             );
+            
             // Verify new values set
-            const new_feedIDs = await contract.getFeedIDs();
-            expect(new_feedIDs[0].symbol).to.equal("TEST/USD");
-            expect(
-                new_feedIDs[0].id
-            ).to.equal(
-                "0x0000000000000000000000000000000000000000000000000000000000000000"
+            const new_feedID = await contract.getFeedID();
+            expect(new_feedID.symbol).to.equal("TEST/USD");
+            expect(new_feedID.id).to.equal(
+                "0x0000000000000000000000000000000000000000000000000000000000000001"
             );
         });
 
@@ -248,8 +241,8 @@ describe("📝 Mana Contract", function () {
             )).to.be.revertedWith("Not enough USDC in account");
         });
 
-        it("🔥 Should not allow to purchase when locked", async function () {
-            // Locj purchasing functions
+        it("🔥 Should not allow to purchase when locked or feed not set", async function () {
+            // Lock purchasing functions
             await contract.lockCrypto(false);
             await contract.lockUSDCToken(false);
 
@@ -257,11 +250,28 @@ describe("📝 Mana Contract", function () {
             const pkgIndex = 0;
             const pkgQty = 1;
 
+            // Purchase with Crypto (feed ID not set)
+            await expect(contract.purchasePackage(
+                pkgIndex, // Package with index 0
+                pkgQty, // Qty of packages 
+                [owner.address],
+                {
+                    value: ethers.parseEther("0.000000000000000001"),
+                    gasLimit: 1000000,
+                }
+            )).to.be.revertedWith("Feed ID is not set");
+
+            // Set feed
+            await contract.setFeedID(
+                "RON/USD", 
+                priceId[0]
+            );
+
             // Purchase with Crypto
             await expect(contract.purchasePackage(
                 pkgIndex, // Package with index 0
                 pkgQty, // Qty of packages 
-                1, [owner.address],
+                [owner.address],
                 {
                     value: ethers.parseEther("0.000000000000000001"),
                     gasLimit: 1000000,
@@ -337,7 +347,7 @@ describe("📝 Mana Contract", function () {
             expect(afterAddress - beforeAddress).to.equal(1);
 
 
-            // WITHDRAW AN ALL TOKEN FUNDS
+            // WITHDRAW ALL TOKEN FUNDS
             // Get balances before withdrawal
             const beforeAddressAll = await tokenContract.balanceOf(vaultAddress);
             const beforeWithdrawAll = await tokenContract.balanceOf(
@@ -361,10 +371,16 @@ describe("📝 Mana Contract", function () {
     if (run_oracle){
         it("🔥 Should verify price fetch, allow purchase with crypto and update balance", async function () {
             // Hermes client
-            const priceUpdates = await connection.getLatestPriceUpdates(priceIds);
+            const priceUpdates = await connection.getLatestPriceUpdates(priceId);
         
             const updateData = priceUpdates['binary']['data'][0];
             const formattedHex = updateData.startsWith("0x") ? updateData : "0x" + updateData;
+
+            // Set feed
+            await contract.setFeedID(
+                "RON/USD", 
+                priceId[0]
+            );
         
             // Set packages
             const pkgSize = 50;
@@ -385,11 +401,9 @@ describe("📝 Mana Contract", function () {
             // Call function that interacts with Orcale
             const pkgIndex = 0;
             const pkgQty = 2;
-            const feedIndex = 2; // Ronin
             const tx = await contract.purchasePackage(
                 pkgIndex, // Package with index 0
-                pkgQty, // Qty of packages 
-                feedIndex, // Feed id 2 -> RON
+                pkgQty, // Qty of packages
                 [formattedHex], 
                 {
                     value: 3 * 10 ** 12,
@@ -414,10 +428,16 @@ describe("📝 Mana Contract", function () {
 
         it("🔥 Should fail purchase with insufficient crypto sent", async function () {
             // Hermes client
-            const priceUpdates = await connection.getLatestPriceUpdates(priceIds);
+            const priceUpdates = await connection.getLatestPriceUpdates(priceId);
         
             const updateData = priceUpdates['binary']['data'][0];
             const formattedHex = updateData.startsWith("0x") ? updateData : "0x" + updateData;
+
+            // Set feed
+            await contract.setFeedID(
+                "RON/USD", 
+                priceId[0]
+            );
         
             // Set packages
             const pkgSize = 50;
@@ -438,11 +458,9 @@ describe("📝 Mana Contract", function () {
             // Call function that interacts with Orcale
             const pkgIndex = 0;
             const pkgQty = 100;
-            const feedIndex = 2; // Ronin
             expect(await contract.purchasePackage(
                 pkgIndex, // Package with index 0
-                pkgQty, // Qty of packages 
-                feedIndex, // Feed id 2 -> RON
+                pkgQty, // Qty of packages
                 [formattedHex], 
                 {
                     value: 3 * 10 ** 12,
@@ -454,11 +472,18 @@ describe("📝 Mana Contract", function () {
 
         it("🔥 Should verify withdrawals for crypto txns", async function () {
             // Hermes client
-            const priceUpdates = await connection.getLatestPriceUpdates(priceIds);
+            const priceUpdates = await connection.getLatestPriceUpdates(priceId);
         
             const updateData = priceUpdates['binary']['data'][0];
             const formattedHex = updateData.startsWith("0x") ? updateData : "0x" + updateData;
-        
+
+            // Set feed
+            await contract.setFeedID(
+                "RON/USD", 
+                priceId[0]
+            );
+
+
             // Set packages
             const pkgSize = 50;
             const packageIds = Array(pkgSize).fill('0x0');
@@ -477,11 +502,9 @@ describe("📝 Mana Contract", function () {
             // Call function that interacts with Orcale
             const pkgIndex = 0;
             const pkgQty = 2;
-            const feedIndex = 2; // Ronin
             const tx = await contract.purchasePackage(
                 pkgIndex, // Package with index 0
-                pkgQty, // Qty of packages 
-                feedIndex, // Feed id 2 -> RON
+                pkgQty, // Qty of packages
                 [formattedHex], 
                 {
                     value: 3 * 10 ** 12,
@@ -509,7 +532,7 @@ describe("📝 Mana Contract", function () {
                 await contract.getAddress()
             );
 
-            // Withdraw 1 unit
+            // Withdraw 100 units
             await contract.withdraw(100);
             const afterWithdraw = await ethers.provider.getBalance(
                 await contract.getAddress()
@@ -520,8 +543,7 @@ describe("📝 Mana Contract", function () {
             const afterAddress = await ethers.provider.getBalance(vaultAddress);
             expect(afterAddress - beforeAddress).to.equal(100);
 
-
-            // WITHDRAW AN ALL TOKEN FUNDS
+            // WITHDRAW ALL TOKEN FUNDS
             // Get balances before withdrawal
             const beforeAddressAll = await ethers.provider.getBalance(vaultAddress);
             const beforeWithdrawAll = await ethers.provider.getBalance(

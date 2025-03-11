@@ -44,3 +44,64 @@ This repository contains some explorations of basic Mana contract deployed to th
 2. Please, be sure the vault address is set. You can use the the `contract_setup.py` script for this.
 3. Edit the `contract_test_widthdraw.py` script to add the amount or use the `withdraw_all` function.
 4. Run `python contract_test_widthdraw.py` to run the script and transfer an Item.
+
+### Verifying contracts
+
+#### Ronin Chain
+
+Once you deploy with:
+```sh
+npx hardhat deploy --network ronin
+```
+
+You can verify the contract by running:
+```sh
+npx hardhat sourcify --endpoint https://sourcify.roninchain.com/server/ --network ronin
+```
+
+> **Note:** You can change the `ronin` parameter to `saigon` to deploy and verify in the testnet.
+
+#### Ethereum Chain
+
+Once you deploy with:
+```sh
+npx hardhat deploy --network ethereum
+```
+
+You can verify the contract by running:
+```sh
+npx hardhat verify --network ethereum ADDRESS  "param-1" "param-2" ...
+```
+
+> **Note:** You need to set the Etherscan API key in the `hardhat.config.js` file:
+> ```js
+> // All required packages
+> ...
+> 
+> // Set keys
+> ...
+> 
+> /** @type import('hardhat/config').HardhatUserConfig */
+> module.exports = {
+>   solidity: {
+>     version: "0.8.27",
+>     settings: {
+>       optimizer: {
+>         enabled: true,
+>         runs: 200
+>       }
+>     }
+>   },
+>   defaultNetwork: "hardhat",
+>   networks: {
+>     hardhat: {
+>       allowUnlimitedContractSize: true,
+>     },
+>     ...
+>   },
+>   // This is needed!
+>   etherscan: {
+>     apiKey: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+>   }
+> };
+> ```
