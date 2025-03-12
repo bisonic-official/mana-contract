@@ -9,6 +9,7 @@ describe("📝 Mana Contract", function () {
     // Set to true to only run Pyth Oracle tests
     const only_oracle = false;
     const run_oracle = false;
+    const display_hex = false;
 
     //  Set global variables
     let ManaVendingMachine, contract, owner;
@@ -17,7 +18,7 @@ describe("📝 Mana Contract", function () {
 
     //  Set Pyth address
     const PythAddress = "0xEbe57e8045F2F230872523bbff7374986E45C486"; // Saigon
-    // const PythAddress = "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729"; // Sepolia
+    // const PythAddress = "0xDd24F84d36BF92C65F92307595335bdFab5Bbd21"; // Sepolia
     const connection = new HermesClient("https://hermes.pyth.network", {});
 
     // You can find the ids of prices at https://pyth.network/developers/price-feed-ids#pyth-evm-stable
@@ -38,7 +39,7 @@ describe("📝 Mana Contract", function () {
         tokenAddress = await tokenContract.getAddress();
 
         // Mint tokens
-        await tokenContract.mint(owner, 100000);
+        await tokenContract.mint(owner, 100000e6);
 
         // Deploy main contract
         contract = await ManaVendingMachine.deploy(
@@ -56,7 +57,15 @@ describe("📝 Mana Contract", function () {
     // Runs tests that not include consulting the oracle 
     if (!only_oracle){
         it("🔥 Should verify contract owner", async function () {
-            expect(await contract.owner()).to.equal(owner.address);
+            expect(await contract.owner()).to.equal(owner.address);// Hermes client
+            const priceUpdates = await connection.getLatestPriceUpdates(priceId);
+        
+            // Display generated hex code from Hermes for Feed ID
+            if (display_hex) {
+                const updateData = priceUpdates['binary']['data'][0];
+                const formattedHex = updateData.startsWith("0x") ? updateData : "0x" + updateData;
+                console.log(formattedHex);
+            }
         });
 
         it("🔥 Should verify packages initial quantity", async function () {
@@ -179,9 +188,9 @@ describe("📝 Mana Contract", function () {
             packageIds[1] = 'Package 2';
             packageIds[2] = 'Package 3';
         
-            packagePrices[0] = 10;
-            packagePrices[1] = 20;
-            packagePrices[2] = 30;
+            packagePrices[0] = 10e6;
+            packagePrices[1] = 20e6;
+            packagePrices[2] = 30e6;
         
             await contract.setPackages(packageIds, packagePrices);
 
@@ -192,7 +201,7 @@ describe("📝 Mana Contract", function () {
             // IMPOTANT! THIS IS NEEDED!
             // Add allowance
             const vendingMachineAddress = await contract.getAddress();
-            await tokenContract.approve(vendingMachineAddress, 10);
+            await tokenContract.approve(vendingMachineAddress, 10e6);
 
             // Purchase with USDC
             const priorBalance = await tokenContract.balanceOf(owner);
@@ -207,11 +216,11 @@ describe("📝 Mana Contract", function () {
 
             // Validate results and updates
             expect(receipt.status).to.be.equal(1);
-            expect(priorBalance - postBalance).to.be.equal(10);
+            expect(priorBalance - postBalance).to.be.equal(10e6);
             const contractUSDCBalance = await tokenContract.balanceOf(
                 await contract.getAddress()
             );
-            expect(contractUSDCBalance).to.be.equal(10);
+            expect(contractUSDCBalance).to.be.equal(10e6);
         });
 
         it("🔥 Should fail purchase with insufficient Tokens", async function () {
@@ -224,9 +233,9 @@ describe("📝 Mana Contract", function () {
             packageIds[1] = 'Package 2';
             packageIds[2] = 'Package 3';
         
-            packagePrices[0] = 1000000000000;
-            packagePrices[1] = 2000000000000;
-            packagePrices[2] = 3000000000000;
+            packagePrices[0] = 1e12
+            packagePrices[1] = 2e12;
+            packagePrices[2] = 3e12;
         
             await contract.setPackages(packageIds, packagePrices);
 
@@ -295,9 +304,9 @@ describe("📝 Mana Contract", function () {
             packageIds[1] = 'Package 2';
             packageIds[2] = 'Package 3';
         
-            packagePrices[0] = 10;
-            packagePrices[1] = 20;
-            packagePrices[2] = 30;
+            packagePrices[0] = 10e6;
+            packagePrices[1] = 20e6;
+            packagePrices[2] = 30e6;
         
             await contract.setPackages(packageIds, packagePrices);
 
@@ -308,7 +317,7 @@ describe("📝 Mana Contract", function () {
             // IMPOTANT! THIS IS NEEDED!
             // Add allowance
             const vendingMachineAddress = await contract.getAddress();
-            await tokenContract.approve(vendingMachineAddress, 10);
+            await tokenContract.approve(vendingMachineAddress, 10e6);
 
             // Purchase with USDC
             const tx = await contract.purchasePackageWithUSDC(
@@ -324,7 +333,7 @@ describe("📝 Mana Contract", function () {
 
 
             // Set vault address
-            const vaultAddress = "0xa0Ff5b048E0e53f1204F0537F1cEC8f49dC9D515";
+            const vaultAddress = "0x0d72fD549214Eb53cC241f400B147364e926E15B";
             await contract.setVaultAddress(vaultAddress);
             
             
@@ -391,9 +400,9 @@ describe("📝 Mana Contract", function () {
             packageIds[1] = 'Package 2';
             packageIds[2] = 'Package 3';
         
-            packagePrices[0] = 1 * 10 ** 12;
-            packagePrices[1] = 2 * 10 ** 12;
-            packagePrices[2] = 3 * 10 ** 12;
+            packagePrices[0] = 2e5;
+            packagePrices[1] = 3e5;
+            packagePrices[2] = 4e5;
         
             await contract.setPackages(packageIds, packagePrices);
         
@@ -406,7 +415,7 @@ describe("📝 Mana Contract", function () {
                 pkgQty, // Qty of packages
                 [formattedHex], 
                 {
-                    value: 3 * 10 ** 12,
+                    value: ethers.parseEther("0.3"),
                     gasLimit: 1000000,
                 }
             );
@@ -448,9 +457,9 @@ describe("📝 Mana Contract", function () {
             packageIds[1] = 'Package 2';
             packageIds[2] = 'Package 3';
         
-            packagePrices[0] = 1 * 10 ** 12;
-            packagePrices[1] = 2 * 10 ** 12;
-            packagePrices[2] = 3 * 10 ** 12;
+            packagePrices[0] = 2e5;
+            packagePrices[1] = 3e5;
+            packagePrices[2] = 4e5;
         
             await contract.setPackages(packageIds, packagePrices);
             
@@ -463,7 +472,7 @@ describe("📝 Mana Contract", function () {
                 pkgQty, // Qty of packages
                 [formattedHex], 
                 {
-                    value: 3 * 10 ** 12,
+                    value: ethers.parseEther("0.3"),
                     gasLimit: 10000000,
                     gasPrice: 30000000000
                 }
@@ -493,9 +502,9 @@ describe("📝 Mana Contract", function () {
             packageIds[1] = 'Package 2';
             packageIds[2] = 'Package 3';
         
-            packagePrices[0] = 1 * 10 ** 12;
-            packagePrices[1] = 2 * 10 ** 12;
-            packagePrices[2] = 3 * 10 ** 12;
+            packagePrices[0] = 2e5;
+            packagePrices[1] = 3e5;
+            packagePrices[2] = 4e5;
         
             await contract.setPackages(packageIds, packagePrices);
 
@@ -507,7 +516,7 @@ describe("📝 Mana Contract", function () {
                 pkgQty, // Qty of packages
                 [formattedHex], 
                 {
-                    value: 3 * 10 ** 12,
+                    value: ethers.parseEther("0.3"),
                     gasLimit: 10000000,
                     gasPrice: 30000000000
                 }

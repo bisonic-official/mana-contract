@@ -17,7 +17,7 @@ const func = async function (hre) {
             from: deployer,
             args: [
                 // "0xEbe57e8045F2F230872523bbff7374986E45C486", // Saigon
-                "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729", // Sepolia
+                "0xDd24F84d36BF92C65F92307595335bdFab5Bbd21", // Sepolia
                 mockUSDCContract.address
             ],
             log: true,

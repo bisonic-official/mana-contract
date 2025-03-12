@@ -307,10 +307,16 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
         // Require a valid index
         require(_index < packages.length, "Invalid package index");
 
+        // Require valid package price
+        require(
+            packages[_index].price != MAX_INT,
+            "Index set to max value may cause an overflow"
+        );
+
         // Require a valid quantity
         require(_quantity > 0, "Quantity must be greater than zero");
 
-        // Calculate packages total in USDC
+        // Calculate packages total in USDC (1e6)
         uint256 totalPrice = packages[_index].price * _quantity;
 
         // Fetch price
@@ -319,7 +325,7 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
         int32 priceExpo = price.expo;
         require(priceValue > 0, "Oracle price must be greater than zero");
 
-        // Transform to e18 using exponent
+        // Transform to corresponding unit
         uint256 convertedPrice = 0;
         if (priceExpo < 0) {
             convertedPrice =
@@ -332,9 +338,9 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
         }
         require(convertedPrice > 0, "Invalid price feed value returned");
 
-        // Make conversion equivalent to USDC in crypto
+        // Make conversion equivalent to USDC (1e6) in crypto (1e18)
         uint256 requiredCrypto = (totalPrice * (10 ** 18)) /
-            uint256(convertedPrice);
+            (uint256(convertedPrice) * (10 ** 6));
 
         // Here goes rate eps
         require(msg.value >= requiredCrypto, "Insufficient crypto sent");
@@ -357,6 +363,12 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
 
         // Require a valid index
         require(_index < packages.length, "Invalid package index");
+
+        // Require valid package price
+        require(
+            packages[_index].price != MAX_INT,
+            "Index set to max value may cause an overflow"
+        );
 
         // Require a valid quantity
         require(_quantity > 0, "Quantity must be greater than zero");
