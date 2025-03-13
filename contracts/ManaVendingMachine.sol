@@ -120,7 +120,7 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
         }
 
         // Initialize an empty feed ID
-        feedID = FeedID("NULL", "0x0");
+        feedID = FeedID("NULL", bytes32(0));
     }
 
     /**
@@ -299,7 +299,7 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
         bytes[] calldata updateData
     ) public payable {
         // Require feed ID set
-        require(feedID.id != "0x0", "Feed ID is not set");
+        require(feedID.id != bytes32(0), "Feed ID is not set");
 
         // Require enabled payments
         require(cryptoEnabled, "Crypto payments are not enabled!");
@@ -309,8 +309,8 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
 
         // Require valid package price
         require(
-            packages[_index].price != MAX_INT,
-            "Index set to max value may cause an overflow"
+            packages[_index].price > 0 && packages[_index].price < MAX_INT,
+            "Invalid package price for index"
         );
 
         // Require a valid quantity
@@ -329,18 +329,17 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
         uint256 convertedPrice = 0;
         if (priceExpo < 0) {
             convertedPrice =
-                uint256(priceValue * (10 ** 18)) /
+                uint256(priceValue * 1e6) /
                 (10 ** uint32(-1 * priceExpo));
         } else {
             convertedPrice =
-                uint256(priceValue * (10 ** 18)) *
+                uint256(priceValue * 1e6) *
                 (10 ** uint32(priceExpo));
         }
-        require(convertedPrice > 0, "Invalid price feed value returned");
 
         // Make conversion equivalent to USDC (1e6) in crypto (1e18)
-        uint256 requiredCrypto = (totalPrice * (10 ** 18)) /
-            (uint256(convertedPrice) * (10 ** 6));
+        require(convertedPrice > 0, "Invalid price feed value returned");
+        uint256 requiredCrypto = (totalPrice * 1e18) / uint256(convertedPrice);
 
         // Here goes rate eps
         require(msg.value >= requiredCrypto, "Insufficient crypto sent");

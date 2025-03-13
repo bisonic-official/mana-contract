@@ -65,6 +65,7 @@ describe("📝 Mana Contract", function () {
                 const updateData = priceUpdates['binary']['data'][0];
                 const formattedHex = updateData.startsWith("0x") ? updateData : "0x" + updateData;
                 console.log(formattedHex);
+                console.log(priceUpdates['parsed'][0]['price']);
             }
         });
 
@@ -162,7 +163,7 @@ describe("📝 Mana Contract", function () {
             // Verify getter
             const feedID = await contract.getFeedID();
             expect(feedID.symbol).to.equal("NULL");
-            expect(feedID.id).to.equal("0x3078300000000000000000000000000000000000000000000000000000000000");
+            expect(feedID.id).to.equal("0x0000000000000000000000000000000000000000000000000000000000000000");
 
             // Verify setter
             await contract.setFeedID(
@@ -415,10 +416,19 @@ describe("📝 Mana Contract", function () {
                 pkgQty, // Qty of packages
                 [formattedHex], 
                 {
-                    value: ethers.parseEther("0.3"),
-                    gasLimit: 1000000,
+                    value: ethers.parseEther("0.5"),
+                    gasLimit: 1000000
                 }
             );
+            expect(await contract.purchasePackage(
+                pkgIndex, // Package with index 0
+                pkgQty, // Qty of packages
+                [formattedHex], 
+                {
+                    value: ethers.parseEther("0.4"),
+                    gasLimit: 10000000
+                }
+            )).to.be.revertedWith("Insufficient crypto sent");
             // Print testing address to validate income
             // console.log(await contract.getAddress());
             
@@ -472,9 +482,8 @@ describe("📝 Mana Contract", function () {
                 pkgQty, // Qty of packages
                 [formattedHex], 
                 {
-                    value: ethers.parseEther("0.3"),
-                    gasLimit: 10000000,
-                    gasPrice: 30000000000
+                    value: ethers.parseEther("0.5"),
+                    gasLimit: 10000000
                 }
             )).to.be.revertedWith("Insufficient crypto sent");
         });
@@ -516,9 +525,8 @@ describe("📝 Mana Contract", function () {
                 pkgQty, // Qty of packages
                 [formattedHex], 
                 {
-                    value: ethers.parseEther("0.3"),
-                    gasLimit: 10000000,
-                    gasPrice: 30000000000
+                    value: ethers.parseEther("0.5"),
+                    gasLimit: 10000000
                 }
             );
             // Print testing address to validate income
