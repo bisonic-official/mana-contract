@@ -25,8 +25,8 @@ def load_config(config_file):
     return config
 
 
-def setup_custom_logger(name='buyer',
-                        filename='buyer.log',
+def setup_custom_logger(name="pixel",
+                        filename="pixel.log",
                         level=logging.INFO):
     """Setup a custom logger.
 
@@ -40,7 +40,7 @@ def setup_custom_logger(name='buyer',
         The logging level, by default set to INFO.
     """
 
-    msg_format = '%(asctime)s - %(levelname)s - %(module)s - %(message)s'
+    msg_format = "%(asctime)s - %(levelname)s - %(module)s - %(message)s"
     formatter = logging.Formatter(fmt=msg_format)
 
     handler = logging.FileHandler(filename=filename)
@@ -50,6 +50,6 @@ def setup_custom_logger(name='buyer',
     logger.setLevel(level)
     logger.addHandler(handler)
 
-    logger.info('Logger initialized correctly!')
+    logger.info("Logger initialized correctly!")
 
     return logger

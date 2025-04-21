@@ -23,17 +23,60 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
     IERC20 public usdcToken;
 
     /**
+     * @notice The PIXEL contract address.
+     * @notice Must be set during deployment.
+     */
+    IERC20 public pixelToken;
+
+    /**
      * @notice Enables payments with Tokens
      * @notice This is used to lock payments with specific tokens.
      */
     bool cryptoEnabled = true;
     bool usdcTokenEnabled = true;
+    bool pixelTokenEnabled = true;
 
     /**
      * @notice Vault address.
      * @notice This address will receive all the funds after withdrawal.
      */
     address payable public vaultAddress;
+
+    /**
+     * @notice Updater address.
+     * @notice This address is used for contract updates.
+     */
+    address updaterAddress;
+
+    /**
+     * @notice PIXEL base price (in USDC).
+     * @notice This is the conversion value used for PIXEL.
+     */
+    uint256 pixelPrice;
+
+    /**
+     * @notice Discount amount for Crypto token.
+     * @notice This discount will be applied to the Crypto token. It uses
+     * 6 numbers: 2 for the integer part and 4 for the decimals, for instance
+     * 125000 translates to 12.5000 % of discount.
+     */
+    uint discountCrypto = 0;
+
+    /**
+     * @notice Discount amount for USDC token.
+     * @notice This discount will be applied to the USDC token. It uses
+     * 6 numbers: 2 for the integer part and 4 for the decimals, for instance
+     * 125000 translates to 12.5000 % of discount.
+     */
+    uint discountUSDC = 0;
+
+    /**
+     * @notice Discount amount for PIXEL token.
+     * @notice This discount will be applied to the PIXEL token. It uses
+     * 6 numbers: 2 for the integer part and 4 for the decimals, for instance
+     * 125000 translates to 12.5000 % of discount.
+     */
+    uint discountPIXEL = 0;
 
     /**
      * @notice Package struct.
@@ -100,19 +143,47 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
     );
 
     /**
+     * @dev Event to be emited on purchase with PIXEL.
+     * @param buyer address The address of the buyer.
+     * @param package uint256 The index of the purchased packages.
+     * @param quantity uint256 The quantity of the purchased packages.
+     * @param amountSpent uint256 The amount spent in the purchased packages.
+     */
+    event PurchaseEventPIXEL(
+        address buyer,
+        uint256 package,
+        uint256 quantity,
+        uint256 amountSpent
+    );
+
+    /**
      * @dev Constructor function.
      * @param _pyth The address of the Pyth contract
      * @param _usdcToken The address of the USDC contract
+     * @param _pixelToken The address of the PIXEL contract
      */
-    constructor(address _pyth, address _usdcToken) Ownable(msg.sender) {
+    constructor(
+        address _pyth,
+        address _usdcToken,
+        address _pixelToken
+    ) Ownable(msg.sender) {
         // Set the Pyth contract address
         pyth = IPyth(_pyth);
 
         // Set the USDC contract address
         usdcToken = IERC20(_usdcToken);
 
+        // Set the PICEL contract address
+        pixelToken = IERC20(_pixelToken);
+
         // Set the owner and vaultAddress as the contract creator
         vaultAddress = payable(msg.sender);
+
+        // Set the pixel price to MAX_INT
+        pixelPrice = MAX_INT;
+
+        // Set the updater address to 0x0 address
+        updaterAddress = address(0);
 
         // Initialize packages
         for (uint8 i = 0; i < pkgQty; i++) {
@@ -139,6 +210,36 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @dev Get the PIXEL contract address.
+     */
+    function getPIXELAddress() public view returns (IERC20) {
+        return pixelToken;
+    }
+
+    /**
+     * @dev Set the PIXEL contract address.
+     * @param _PIXELAddress address The address of the PIXEL contract.
+     */
+    function setPIXELAddress(IERC20 _PIXELAddress) external onlyOwner {
+        pixelToken = _PIXELAddress;
+    }
+
+    /**
+     * @dev Get the updater address.
+     */
+    function getUpdaterAddress() public view returns (address) {
+        return updaterAddress;
+    }
+
+    /**
+     * @dev Set the updater address.
+     * @param _updaterAddress address The updater address for pixel price.
+     */
+    function setUpdaterAddress(address _updaterAddress) external onlyOwner {
+        updaterAddress = _updaterAddress;
+    }
+
+    /**
      * @dev Get the Pyth contract address.
      */
     function getPythAddress() public view returns (IPyth) {
@@ -159,6 +260,88 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
      */
     function setVaultAddress(address _vaultAdress) external onlyOwner {
         vaultAddress = payable(_vaultAdress);
+    }
+
+    /**
+     * @dev Get the Crypto discount.
+     */
+    function getCryptoDiscount() public view returns (uint) {
+        return discountCrypto;
+    }
+
+    /**
+     * @dev Set the Crypto discount value.
+     * @param _discountCrypto uint The discount value for Crypto token. It uses
+     * 6 numbers: 2 for the integer part and 4 for the decimals, for instance
+     * 125000 translates to 12.5000 % of discount.
+     */
+    function setCryptoDiscount(uint _discountCrypto) external onlyOwner {
+        require(
+            _discountCrypto <= 1000000 && _discountCrypto >= 0,
+            "The discount amount is not valid"
+        );
+        discountCrypto = _discountCrypto;
+    }
+
+    /**
+     * @dev Get the USDC discount.
+     */
+    function getUSDCDiscount() public view returns (uint) {
+        return discountUSDC;
+    }
+
+    /**
+     * @dev Set the USDC discount value.
+     * @param _discountUSDC uint The discount value for USDC token. It uses
+     * 6 numbers: 2 for the integer part and 4 for the decimals, for instance
+     * 125000 translates to 12.5000 % of discount.
+     */
+    function setUSDCDiscount(uint _discountUSDC) external onlyOwner {
+        require(
+            _discountUSDC <= 1000000 && _discountUSDC >= 0,
+            "The discount amount is not valid"
+        );
+        discountUSDC = _discountUSDC;
+    }
+
+    /**
+     * @dev Get the PIXEL discount.
+     */
+    function getPIXELDiscount() public view returns (uint) {
+        return discountPIXEL;
+    }
+
+    /**
+     * @dev Set the PIXEL discount value.
+     * @param _discountPIXEL uint The discount value for PIXEL token. It uses
+     * 6 numbers: 2 for the integer part and 4 for the decimals, for instance
+     * 125000 translates to 12.5000 % of discount.
+     */
+    function setPIXELDiscount(uint _discountPIXEL) external onlyOwner {
+        require(
+            _discountPIXEL <= 1000000 && _discountPIXEL >= 0,
+            "The discount amount is not valid"
+        );
+        discountPIXEL = _discountPIXEL;
+    }
+
+    /**
+     * @dev Get the PIXEL price.
+     */
+    function getPIXELPrice() public view returns (uint256) {
+        return pixelPrice;
+    }
+
+    /**
+     * @dev Set the PIXEL price.
+     * @param _pixelPrice address The address of the USDC contract.
+     */
+    function setPIXELPrice(uint256 _pixelPrice) external {
+        require(
+            msg.sender == updaterAddress,
+            "The address is not allowed to change the PIXEL price"
+        );
+        pixelPrice = _pixelPrice;
     }
 
     /**
@@ -265,6 +448,14 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @dev Lock PIXEL payments.
+     * @param _locked bool The lock value.
+     */
+    function lockPIXELToken(bool _locked) public onlyOwner {
+        pixelTokenEnabled = _locked;
+    }
+
+    /**
      * This method interacts with the Pyth contract.
      * Fetch the priceUpdate from Hermes and pass it to the Pyth contract to update the prices.
      * Add the priceUpdate argument to any method on your contract that needs to read the Pyth price.
@@ -341,6 +532,10 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
         require(convertedPrice > 0, "Invalid price feed value returned");
         uint256 requiredCrypto = (totalPrice * 1e18) / uint256(convertedPrice);
 
+        // Substract discount
+        uint256 discount = (requiredCrypto * discountCrypto) / 1e6;
+        requiredCrypto -= discount;
+
         // Here goes rate eps
         require(msg.value >= requiredCrypto, "Insufficient crypto sent");
 
@@ -375,6 +570,10 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
         // Calculate packages total
         uint256 totalPrice = packages[_index].price * _quantity;
 
+        // Substract discount
+        uint256 discount = (totalPrice * discountUSDC) / 1e6;
+        totalPrice -= discount;
+
         // Validate enough tokens in account
         require(
             usdcToken.balanceOf(msg.sender) >= totalPrice,
@@ -395,6 +594,62 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
 
         // Purchase with USDC increases Crypto
         emit PurchaseEventUSDC(msg.sender, _index, _quantity, totalPrice);
+    }
+
+    /**
+     * @dev Allows users to purchase packages using PIXEL.
+     * @param _index uint256 The index of the package to purchase.
+     * @param _quantity uint256 The quantity of the packages to purchase.
+     */
+    function purchasePackageWithPIXEL(
+        uint256 _index,
+        uint256 _quantity
+    ) external {
+        // Require enabled payments
+        require(pixelTokenEnabled, "PIXEL payments are not enabled!");
+
+        // Require a valid index
+        require(_index < packages.length, "Invalid package index");
+
+        // Require valid package price
+        require(
+            packages[_index].price != MAX_INT,
+            "Index set to max value may cause an overflow"
+        );
+
+        // Require a valid quantity
+        require(_quantity > 0, "Quantity must be greater than zero");
+
+        // Calculate packages total (1e6)
+        uint256 totalPrice = packages[_index].price * _quantity;
+
+        // Make conversion
+        uint256 requiredPixel = (totalPrice * 1e18) / pixelPrice;
+
+        // Substract discount
+        uint256 discount = (requiredPixel * discountPIXEL) / 1e6;
+        requiredPixel -= discount;
+
+        // Validate enough tokens in account
+        require(
+            pixelToken.balanceOf(msg.sender) >= requiredPixel,
+            "Not enough PIXEL in account"
+        );
+
+        // Validate allowance to pay with USDC
+        require(
+            pixelToken.allowance(msg.sender, address(this)) >= requiredPixel,
+            "Not enough allowance"
+        );
+
+        // Require transfer from USDC to this contract
+        require(
+            pixelToken.transferFrom(msg.sender, address(this), requiredPixel),
+            "PIXEL payment failed"
+        );
+
+        // Purchase with USDC increases Crypto
+        emit PurchaseEventPIXEL(msg.sender, _index, _quantity, requiredPixel);
     }
 
     /**
@@ -435,6 +690,28 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @dev Withdraw funds to the vault using transferFrom.
+     * @param _amount uint256 The amount to withdraw.
+     */
+    function withdrawPIXELToken(uint256 _amount) external onlyOwner {
+        uint256 pixelBalance = pixelToken.balanceOf(address(this));
+        require(_amount > 0, "Amount must be greater than 0");
+        require(_amount <= pixelBalance, "Insufficient contract balance");
+
+        // Add allowance
+        pixelToken.approve(address(this), _amount);
+
+        // Transfer token to vault address
+        bool success = pixelToken.transferFrom(
+            address(this),
+            vaultAddress,
+            _amount
+        );
+
+        require(success, "Withdraw was not successful");
+    }
+
+    /**
      * @dev Withdraw all the native funds to the vaultAdress using call.
      */
     function withdrawAll() external nonReentrant onlyOwner {
@@ -457,6 +734,26 @@ contract ManaVendingMachine is Ownable, ReentrancyGuard {
 
         // Transfer token to vault address
         bool success = usdcToken.transferFrom(
+            address(this),
+            vaultAddress,
+            _amount
+        );
+
+        require(success, "Withdraw all was not successful");
+    }
+
+    /**
+     * @dev Withdraw all the PIXEL funds to the vaultAdress using call.
+     */
+    function withdrawAllPIXEL() external onlyOwner {
+        uint256 _amount = pixelToken.balanceOf(address(this));
+        require(_amount > 0, "Amount must be greater than 0");
+
+        // Add allowance
+        pixelToken.approve(address(this), _amount);
+
+        // Transfer token to vault address
+        bool success = pixelToken.transferFrom(
             address(this),
             vaultAddress,
             _amount

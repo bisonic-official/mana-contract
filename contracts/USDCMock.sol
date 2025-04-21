@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract ERC20Mock is ERC20 {
+contract USDCMock is ERC20 {
     uint8 private immutable _customDecimals;
 
-    constructor() ERC20("ERC20Mock", "E20M") {
+    constructor() ERC20("USDCMock", "USDCM") {
         _customDecimals = 6;
     }
 
